@@ -1,68 +1,347 @@
 {
   "requests": [
-    {"method": "GET", "path": "/quote", "query": {"sku": "WIDGET", "qty": "3"}},
-
-    {"method": "GET", "path": "/quote", "query": {"sku": "NOPE"}},
-    {"method": "GET", "path": "/quote", "query": {"sku": "widget", "qty": "1"}},
-    {"method": "GET", "path": "/quote", "query": {"sku": "WIDGET", "qty": "100"}},
-    {"method": "GET", "path": "/quote", "query": {"sku": "DOOHICKEY", "qty": "1", "coupon": "SAVE10"}},
-    {"method": "GET", "path": "/quote", "query": {"sku": "WIDGET", "qty": "1", "coupon": "SUMMER21"}},
-    {"method": "GET", "path": "/customer/9999/tier", "query": {}},
-    {"method": "GET", "path": "/quote", "query": {"sku": "WIDGET"}},
-    {"method": "GET", "path": "/quote", "query": {"sku": "WIDGET", "qty": "1500"}},
-    {"method": "POST", "path": "/invoice", "form": {"customer_id": "1001", "sku": "GIZMO", "qty": "1"}},
-
-    {"method": "GET", "path": "/customer/1001/tier", "query": {}},
-    {"method": "GET", "path": "/customer/1002/tier", "query": {}},
-    {"method": "GET", "path": "/customer/1003/tier", "query": {}},
-    {"method": "GET", "path": "/customer/1004/tier", "query": {}},
-    {"method": "GET", "path": "/customer/5000/tier", "query": {}},
-    {"method": "GET", "path": "/customer/9999/tier", "query": {}},
-    {"method": "GET", "path": "/customer/abc/tier", "query": {}},
-    {"method": "GET", "path": "/nope", "query": {}},
-    {"method": "GET", "path": "/invoice", "query": {}},
-
-    {"method": "POST", "path": "/invoice", "form": {"customer_id": "1002", "sku": "WIDGET", "qty": "3", "coupon": "VIP25"}},
-    {"method": "POST", "path": "/invoice", "form": {"customer_id": "1002", "sku": "WIDGET", "qty": "3", "coupon": "VIP25"}},
-    {"method": "POST", "path": "/invoice", "form": {"customer_id": "1002", "sku": "WIDGET", "qty": "3", "coupon": "VIP25"}},
-    {"method": "POST", "path": "/invoice", "form": {"customer_id": "1003", "sku": "NOPE", "qty": "1"}},
-    {"method": "POST", "path": "/invoice", "form": {"customer_id": "1004", "sku": "GADGET", "qty": "abc"}}
-  ],
-  "sweeps": [
     {
       "method": "GET",
       "path": "/quote",
-      "query": {"sku": "WIDGET"},
-      "vary": {"qty": {"range": [0, 1200, 1]}}
-    },
-    {
-      "method": "GET",
-      "path": "/quote",
-      "query": {"sku": "GADGET"},
-      "vary": {"qty": {"range": [0, 1200, 7]}}
-    },
-    {
-      "method": "GET",
-      "path": "/quote",
-      "query": {"qty": "3"},
-      "vary": {
-        "sku": {"values": ["WIDGET", "widget", " Widget ", "GADGET", "gadget", "GADGET  ", "GIZMO", "gizmo", "DOOHICKEY", "NOPE", null]},
-        "coupon": {"values": [null, "SAVE10", "save10", " SAVE10", "VIP25", "SUMMER21", "BOGUS"]}
+      "query": {
+        "sku": "WIDGET",
+        "qty": "3"
       }
     },
     {
       "method": "GET",
       "path": "/quote",
-      "query": {"sku": "GIZMO"},
-      "vary": {"qty": {"values": ["1", "abc", "", "-5", "0", "2.5", null]}}
+      "query": {
+        "sku": "NOPE"
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/quote",
+      "query": {
+        "sku": "widget",
+        "qty": "1"
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/quote",
+      "query": {
+        "sku": "WIDGET",
+        "qty": "100"
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/quote",
+      "query": {
+        "sku": "DOOHICKEY",
+        "qty": "1",
+        "coupon": "SAVE10"
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/quote",
+      "query": {
+        "sku": "WIDGET",
+        "qty": "1",
+        "coupon": "SUMMER21"
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/customer/9999/tier",
+      "query": {}
+    },
+    {
+      "method": "GET",
+      "path": "/quote",
+      "query": {
+        "sku": "WIDGET"
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/quote",
+      "query": {
+        "sku": "WIDGET",
+        "qty": "1500"
+      }
     },
     {
       "method": "POST",
       "path": "/invoice",
-      "form": {"sku": "WIDGET", "qty": "150"},
+      "form": {
+        "customer_id": "1001",
+        "sku": "GIZMO",
+        "qty": "1"
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/customer/1001/tier",
+      "query": {}
+    },
+    {
+      "method": "GET",
+      "path": "/customer/1002/tier",
+      "query": {}
+    },
+    {
+      "method": "GET",
+      "path": "/customer/1003/tier",
+      "query": {}
+    },
+    {
+      "method": "GET",
+      "path": "/customer/1004/tier",
+      "query": {}
+    },
+    {
+      "method": "GET",
+      "path": "/customer/5000/tier",
+      "query": {}
+    },
+    {
+      "method": "GET",
+      "path": "/customer/9999/tier",
+      "query": {}
+    },
+    {
+      "method": "GET",
+      "path": "/customer/abc/tier",
+      "query": {}
+    },
+    {
+      "method": "GET",
+      "path": "/nope",
+      "query": {}
+    },
+    {
+      "method": "GET",
+      "path": "/invoice",
+      "query": {}
+    },
+    {
+      "method": "POST",
+      "path": "/invoice",
+      "form": {
+        "customer_id": "1002",
+        "sku": "WIDGET",
+        "qty": "3",
+        "coupon": "VIP25"
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/invoice",
+      "form": {
+        "customer_id": "1002",
+        "sku": "WIDGET",
+        "qty": "3",
+        "coupon": "VIP25"
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/invoice",
+      "form": {
+        "customer_id": "1002",
+        "sku": "WIDGET",
+        "qty": "3",
+        "coupon": "VIP25"
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/invoice",
+      "form": {
+        "customer_id": "1003",
+        "sku": "NOPE",
+        "qty": "1"
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/invoice",
+      "form": {
+        "customer_id": "1004",
+        "sku": "GADGET",
+        "qty": "abc"
+      }
+    }
+  ],
+  "sweeps": [
+    {
+      "method": "GET",
+      "path": "/quote",
+      "query": {
+        "sku": "WIDGET"
+      },
       "vary": {
-        "customer_id": {"values": ["1001", "1002", "1003", "1004", "2000", " 1001", null]},
-        "coupon": {"values": [null, "VIP25"]}
+        "qty": {
+          "range": [
+            0,
+            1200,
+            1
+          ]
+        }
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/quote",
+      "query": {
+        "sku": "GADGET"
+      },
+      "vary": {
+        "qty": {
+          "range": [
+            0,
+            1200,
+            7
+          ]
+        }
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/quote",
+      "query": {
+        "qty": "3"
+      },
+      "vary": {
+        "sku": {
+          "values": [
+            "WIDGET",
+            "widget",
+            " Widget ",
+            "GADGET",
+            "gadget",
+            "GADGET  ",
+            "GIZMO",
+            "gizmo",
+            "DOOHICKEY",
+            "NOPE",
+            null
+          ]
+        },
+        "coupon": {
+          "values": [
+            null,
+            "SAVE10",
+            "save10",
+            " SAVE10",
+            "VIP25",
+            "SUMMER21",
+            "BOGUS"
+          ]
+        }
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/quote",
+      "query": {
+        "sku": "GIZMO"
+      },
+      "vary": {
+        "qty": {
+          "values": [
+            "1",
+            "abc",
+            "",
+            "-5",
+            "0",
+            "2.5",
+            null
+          ]
+        }
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/invoice",
+      "form": {
+        "sku": "WIDGET",
+        "qty": "150"
+      },
+      "vary": {
+        "customer_id": {
+          "values": [
+            "1001",
+            "1002",
+            "1003",
+            "1004",
+            "2000",
+            " 1001",
+            null
+          ]
+        },
+        "coupon": {
+          "values": [
+            null,
+            "VIP25"
+          ]
+        }
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/quote",
+      "query": {},
+      "vary": {
+        "sku": {
+          "values": [
+            "WIDGET",
+            "GADGET",
+            "DOOHICKEY"
+          ]
+        },
+        "coupon": {
+          "values": [
+            "SAVE10",
+            "VIP25"
+          ]
+        },
+        "qty": {
+          "range": [
+            95,
+            1000,
+            5
+          ]
+        }
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/invoice",
+      "form": {
+        "sku": "WIDGET"
+      },
+      "vary": {
+        "customer_id": {
+          "values": [
+            "1001",
+            "1002",
+            "2000"
+          ]
+        },
+        "coupon": {
+          "values": [
+            null,
+            "SAVE10",
+            "VIP25"
+          ]
+        },
+        "qty": {
+          "range": [
+            90,
+            1000,
+            13
+          ]
+        }
       }
     }
   ]

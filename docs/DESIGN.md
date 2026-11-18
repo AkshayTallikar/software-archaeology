@@ -107,6 +107,17 @@ example exchanges. This brief is the *only* thing the rebuild agents see.
 * The runner produces an equivalence report: total, matched, and a readable
   diff for every mismatch, with a non-zero exit when below a threshold.
 
+### 3.6 Differential probe (`archaeology/probe.py`)
+
+Replay is only as strong as the recording: a rebuild can match every
+recorded exchange and still differ on inputs nobody recorded (see #15, where
+the first rebuild truncated money after every discount step and no recorded
+request combined a coupon with a bulk quantity). When the legacy system can
+still be called, the probe generates fresh, seeded requests from the spec
+(observed parameter values, integers drawn across their observed range) and
+sends each to both systems. Any divergence fails CI, just like a replay
+mismatch.
+
 ## 4. The sample legacy system
 
 `legacy_app/` contains "ACME Billing", a deliberately crufty stdlib-only WSGI
@@ -133,7 +144,7 @@ ACME Billing, in CI.
 ## 6. Later milestones
 
 * Recording reverse proxy for live HTTP systems in any language.
-* Active probing: generate requests to test UNOBSERVED claims and to refine
+* Targeted probing: generate requests to test UNOBSERVED claims and to refine
   boundaries with binary search instead of sweeps.
 * Stateful behaviour: infer sequences (create then read) and replay them in
   order with state reset.

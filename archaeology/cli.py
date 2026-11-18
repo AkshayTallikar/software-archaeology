@@ -1,4 +1,4 @@
-"""Command line interface: ``archaeology record | infer | brief | replay | demo``."""
+"""Command line interface: ``archaeology record | infer | brief | replay | probe | demo``."""
 
 from __future__ import annotations
 
@@ -12,6 +12,8 @@ from typing import Any, Sequence
 from .brief import generate_brief
 from .infer.claims import load_claims
 from .infer.spec import infer_spec, load_spec, render_report, save_spec, volatile_paths_for
+from .probe import generate_requests, probe
+from .probe import render_markdown as render_probe
 from .recorder import load_workload, record
 from .replay import load_target, render_markdown, replay, to_dict
 from .trace import read_traces
@@ -89,6 +91,29 @@ def cmd_replay(args: argparse.Namespace) -> int:
     return _run_replay(args.traces, args.target, args.spec, args.threshold, args.report, args.json)
 
 
+def _run_probe(reference: str, candidate: str, spec_path: str, traces_path: str,
+               count: int, seed: int, report_path: str | None) -> int:
+    spec = load_spec(spec_path)
+    requests = generate_requests(spec, read_traces(traces_path), count, seed=seed)
+    targets = [load_target(reference), load_target(candidate)]
+    try:
+        report = probe(targets[0], targets[1], requests, spec)
+    finally:
+        for target in targets:
+            close = getattr(target, "close", None)
+            if callable(close):
+                close()
+    markdown = render_probe(report)
+    if report_path:
+        Path(report_path).write_text(markdown, encoding="utf-8")
+    print(markdown.split("\n## ")[0].strip())
+    return 0 if not report.divergences else 1
+
+
+def cmd_probe(args: argparse.Namespace) -> int:
+    return _run_probe(args.reference, args.candidate, args.spec, args.traces, args.count, args.seed, args.report)
+
+
 def cmd_demo(args: argparse.Namespace) -> int:
     out = Path(args.out)
     out.mkdir(parents=True, exist_ok=True)
@@ -100,7 +125,12 @@ def cmd_demo(args: argparse.Namespace) -> int:
     print("\n== 3. Rebuild: writing the brief for coding agents ==")
     cmd_brief(argparse.Namespace(spec=str(spec), traces=str(traces), out=str(brief), name="ACME Billing"))
     print(f"\n== 4. Prove: replaying recorded traffic against {args.target} ==")
-    return _run_replay(str(traces), args.target, str(spec), 1.0, str(out / "equivalence.md"), str(out / "equivalence.json"))
+    replay_status = _run_replay(str(traces), args.target, str(spec), 1.0,
+                                str(out / "equivalence.md"), str(out / "equivalence.json"))
+    print(f"\n== 5. Probe: {args.probe_count} fresh requests the recording never contained ==")
+    probe_status = _run_probe("legacy_app.billing:make_app", args.target, str(spec), str(traces),
+                              args.probe_count, 0, str(out / "probe.md"))
+    return replay_status or probe_status
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -136,9 +166,20 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--json", help="write the JSON report here")
     p.set_defaults(func=cmd_replay)
 
+    p = sub.add_parser("probe", help="send fresh generated requests to two systems and diff them")
+    p.add_argument("--reference", required=True, help="the legacy system: module:attr or URL")
+    p.add_argument("--candidate", required=True, help="the rebuild: module:attr or URL")
+    p.add_argument("--spec", required=True)
+    p.add_argument("--traces", required=True, help="recorded traces, for observed parameter values")
+    p.add_argument("--count", type=int, default=3000)
+    p.add_argument("--seed", type=int, default=0)
+    p.add_argument("--report", help="write the markdown report here")
+    p.set_defaults(func=cmd_probe)
+
     p = sub.add_parser("demo", help="run the whole pipeline on the bundled ACME Billing system")
     p.add_argument("--out", default="out")
     p.add_argument("--target", default="modern_app.main:make_app")
+    p.add_argument("--probe-count", type=int, default=3000)
     p.set_defaults(func=cmd_demo)
     return parser
 

@@ -12,7 +12,7 @@ from archaeology.brief import generate_brief, select_examples
 from archaeology.cli import main
 from archaeology.infer.claims import load_claims
 from archaeology.infer.spec import infer_spec
-from archaeology.recorder import ListSink, exercise, load_workload
+from archaeology.recorder import ListSink, exercise, expand_workload, load_workload
 from legacy_app.billing import make_app
 
 
@@ -108,7 +108,8 @@ def test_cli_record_infer_brief_replay(tmp_path, capsys):
                  "--spec", str(spec_path), "--report", str(tmp_path / "report.md")]) == 0
     assert main(["brief", "--spec", str(spec_path), "--traces", str(traces),
                  "--out", str(tmp_path / "brief.md")]) == 0
-    assert json.loads(spec_path.read_text())["trace_count"] == 1495
+    expected = len(expand_workload(load_workload("legacy_app/workload.json")))
+    assert json.loads(spec_path.read_text())["trace_count"] == expected
 
     # The legacy system replayed against itself (fresh state) is equivalent,
     # and only because volatile fields are ignored.
