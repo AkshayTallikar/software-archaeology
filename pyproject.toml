@@ -1,0 +1,24 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "software-archaeology"
+version = "0.1.0"
+description = "Record a legacy system's real behaviour, infer its true spec, rebuild it, and prove equivalence by replay."
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = ["httpx>=0.27"]
+
+[project.optional-dependencies]
+modern = ["fastapi>=0.110"]
+dev = ["pytest>=8", "fastapi>=0.110"]
+
+[project.scripts]
+archaeology = "archaeology.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["archaeology*", "legacy_app*", "modern_app*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
