@@ -138,7 +138,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     p = sub.add_parser("demo", help="run the whole pipeline on the bundled ACME Billing system")
     p.add_argument("--out", default="out")
-    p.add_argument("--target", default="modern_app.main:app")
+    p.add_argument("--target", default="modern_app.main:make_app")
     p.set_defaults(func=cmd_demo)
     return parser
 
