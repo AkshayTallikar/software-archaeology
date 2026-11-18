@@ -1,0 +1,56 @@
+[
+  {
+    "id": "C1",
+    "text": "Unknown SKUs return HTTP 404.",
+    "request": {"method": "GET", "path": "/quote", "query": {"sku": "NOPE"}},
+    "expect": {"status": 404}
+  },
+  {
+    "id": "C2",
+    "text": "SKUs are case-sensitive; \"widget\" is not a valid SKU.",
+    "request": {"method": "GET", "path": "/quote", "query": {"sku": "widget", "qty": "1"}},
+    "expect": {"json_subset": {"error": "UNKNOWN_SKU"}}
+  },
+  {
+    "id": "C3",
+    "text": "Orders of 100 or more units receive a 10% bulk discount.",
+    "request": {"method": "GET", "path": "/quote", "query": {"sku": "WIDGET", "qty": "100"}},
+    "expect": {"json_subset": {"bulk_discount_pct": 10}}
+  },
+  {
+    "id": "C4",
+    "text": "Totals are rounded to the nearest cent.",
+    "request": {"method": "GET", "path": "/quote", "query": {"sku": "DOOHICKEY", "qty": "1", "coupon": "SAVE10"}},
+    "expect": {"json_subset": {"total": "0.32"}}
+  },
+  {
+    "id": "C5",
+    "text": "Invalid or expired coupon codes return error INVALID_COUPON.",
+    "request": {"method": "GET", "path": "/quote", "query": {"sku": "WIDGET", "qty": "1", "coupon": "SUMMER21"}},
+    "expect": {"json_subset": {"error": "INVALID_COUPON"}}
+  },
+  {
+    "id": "C6",
+    "text": "Unknown customers return HTTP 404 from the tier endpoint.",
+    "request": {"method": "GET", "path": "/customer/9999/tier", "query": {}},
+    "expect": {"status": 404}
+  },
+  {
+    "id": "C7",
+    "text": "qty defaults to 1 when omitted.",
+    "request": {"method": "GET", "path": "/quote", "query": {"sku": "WIDGET"}},
+    "expect": {"json_subset": {"qty": 1}}
+  },
+  {
+    "id": "C8",
+    "text": "Quantities above 1000 are rejected with HTTP 400.",
+    "request": {"method": "GET", "path": "/quote", "query": {"sku": "WIDGET", "qty": "1500"}},
+    "expect": {"status": 400}
+  },
+  {
+    "id": "C9",
+    "text": "GOLD customers receive an extra 5% off invoices.",
+    "request": {"method": "POST", "path": "/invoice", "form": {"customer_id": "1001", "sku": "GIZMO", "qty": "1"}},
+    "expect": {"json_subset": {"tier_discount_pct": 5}}
+  }
+]
