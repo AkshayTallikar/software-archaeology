@@ -141,7 +141,8 @@ def _is_asgi_app(obj: Any) -> bool:
 def load_target(spec: str) -> Target:
     """Build a target from ``"module.path:attr"`` or an ``http(s)://`` base URL.
 
-    An ASGI app (or any object whose ``__call__`` is a coroutine function)
+    A ``make_*`` factory function is called first, for fresh state. An ASGI
+    app (or any object whose ``__call__`` is a coroutine function)
     becomes an :class:`AsgiTarget`; any other callable becomes a
     :class:`WsgiTarget`.
     """
@@ -155,6 +156,9 @@ def load_target(spec: str) -> Target:
     obj: Any = importlib.import_module(module_name)
     for part in attr_path.split("."):
         obj = getattr(obj, part)
+    # A ``make_*`` factory is called, so every replay starts from fresh state.
+    if inspect.isfunction(obj) and obj.__name__.startswith("make_"):
+        obj = obj()
     if _is_asgi_app(obj):
         return AsgiTarget(obj)
     if callable(obj):
