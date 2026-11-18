@@ -13,7 +13,9 @@ Design notes
 * Query strings and form bodies are parsed by hand with ``parse_qs`` and
   ``keep_blank_values=True``. Typed FastAPI parameters would answer 422 for
   inputs the legacy system accepts (missing or blank values, odd numbers).
-* All money is ``Decimal``. Each discount step truncates to the cent.
+* All money is ``Decimal``. Quote totals combine bulk and coupon and truncate
+  once to the cent; invoices then apply the customer tier to that truncated
+  quote total and truncate again. See ``price_line`` and ``handle_invoice``.
 """
 
 from __future__ import annotations
@@ -100,14 +102,23 @@ def bulk_discount_pct(qty: int) -> int:
     return 0
 
 
-def percent_off(amount: Decimal, pct: int) -> Decimal:
-    """Apply a percentage discount and truncate to the cent.
+def apply_discount(amount: Decimal, pct: int) -> Decimal:
+    """Multiply by (100 - pct)%, exactly, with no rounding.
 
-    Evidence: the legacy system truncates rather than rounds. 0.35 with SAVE10
-    gives 0.31 (not 0.32, the documented nearest-cent result). 14.97 with VIP25
-    gives 11.22 (11.2275 truncated). Truncation happens after every step.
+    Intermediate values are NOT truncated: rounding happens only at the two
+    stage boundaries described in ``price_line`` and ``handle_invoice``.
     """
-    return (amount * (100 - pct) / 100).quantize(CENT, rounding=ROUND_DOWN)
+    return amount * (100 - pct) / 100
+
+
+def to_cents(amount: Decimal) -> Decimal:
+    """Truncate to the cent (round toward zero), as the legacy system does.
+
+    Evidence: the documented nearest-cent rounding is wrong. 0.35 with SAVE10
+    gives 0.31 (0.315 truncated, not rounded to 0.32). 14.97 with VIP25 gives
+    11.22 (11.2275 truncated).
+    """
+    return amount.quantize(CENT, rounding=ROUND_DOWN)
 
 
 @dataclass(frozen=True)
@@ -134,17 +145,18 @@ def normalise_coupon(raw: str | None) -> str | None:
 
 
 def price_line(unit: Decimal, qty: int, coupon: str | None) -> Pricing:
-    """Price a line in the legacy order: subtotal, bulk, coupon.
+    """Quote total: bulk and coupon are both applied, then truncated once.
 
-    Evidence: customer 1001, WIDGET x150, VIP25 gives 479.96. That is 673.65
-    after 10% bulk, then 505.23 after 25% coupon, then 479.96 after the 5%
-    GOLD tier. Coupon-before-bulk gives 479.97, which is not observed.
+    Rule (fits all 2,535 recorded quotes, 0 mismatches):
+        quote_total = trunc_cent(subtotal * (1 - bulk) * (1 - coupon))
+    Bulk and coupon are multiplied together with no truncation between them.
+    Evidence: WIDGET x165 with SAVE10 gives 666.91. Truncating after the bulk
+    step (741.01, then 666.90) is wrong and was ruled out by the traces.
     """
     subtotal = (unit * qty).quantize(CENT)
     bulk = bulk_discount_pct(qty)
-    total = percent_off(subtotal, bulk)
-    if coupon is not None:
-        total = percent_off(total, COUPONS[coupon])
+    coupon_pct = COUPONS[coupon] if coupon is not None else 0
+    total = to_cents(apply_discount(apply_discount(subtotal, bulk), coupon_pct))
     return Pricing(subtotal=subtotal, bulk_pct=bulk, coupon=coupon, total=total)
 
 
@@ -306,7 +318,11 @@ def handle_invoice(params: Params, invoices: InvoiceNumbers, now: Callable[[], d
     coupon = normalise_coupon(first_value(params, "coupon"))
     pricing = price_line(CATALOGUE[sku], qty, coupon)
     tier = tier_for(customer_id)
-    total = percent_off(pricing.total, tier.discount_pct)
+    # Invoices apply the tier to the quote total, which is already truncated.
+    # Evidence: WIDGET x3, VIP25, SILVER gives 10.99, which is 11.22 (the
+    # truncated quote total) then 2% off. Applying the tier to the untruncated
+    # 11.2275 gives 11.00 and was ruled out by the traces.
+    total = to_cents(apply_discount(pricing.total, tier.discount_pct))
     return json_response(
         {
             "created_at": now().isoformat(timespec="microseconds"),

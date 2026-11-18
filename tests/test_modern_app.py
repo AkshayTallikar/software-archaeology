@@ -13,11 +13,12 @@ import pytest
 from fastapi.testclient import TestClient
 
 from modern_app.main import (
+    CATALOGUE,
     bulk_discount_pct,
     create_app,
     normalise_coupon,
-    percent_off,
     price_line,
+    to_cents,
 )
 
 
@@ -109,7 +110,38 @@ def test_totals_truncate_rather_than_round() -> None:
     # 0.35 * 0.9 = 0.315; the legacy system returns 0.31, not 0.32.
     assert price_line(Decimal("0.35"), 1, "SAVE10").total == Decimal("0.31")
     # 14.97 * 0.75 = 11.2275, returned as 11.22.
-    assert percent_off(Decimal("14.97"), 25) == Decimal("11.22")
+    assert price_line(CATALOGUE["WIDGET"], 3, "VIP25").total == Decimal("11.22")
+    assert to_cents(Decimal("11.2275")) == Decimal("11.22")
+
+
+def test_quote_coupon_and_bulk_combine_before_one_truncation(client: TestClient) -> None:
+    # Trace: WIDGET x165 SAVE10 -> 666.91. Subtotal 823.35 * 0.9 * 0.9 = 666.9135.
+    # Truncating after the bulk step (741.01 -> 666.90) would be wrong.
+    body = client.get("/quote", params={"sku": "WIDGET", "qty": "165", "coupon": "SAVE10"}).json()
+    assert body["bulk_discount_pct"] == 10
+    assert body["subtotal"] == "823.35"
+    assert body["total"] == "666.91"
+
+
+def test_quote_coupon_and_bulk_at_upper_tier(client: TestClient) -> None:
+    # Trace: WIDGET x600 VIP25 -> 1908.67. 2994.00 * 0.85 * 0.75 = 1908.675.
+    body = client.get("/quote", params={"sku": "WIDGET", "qty": "600", "coupon": "VIP25"}).json()
+    assert body["bulk_discount_pct"] == 15
+    assert body["total"] == "1908.67"
+
+
+def test_invoice_coupon_bulk_and_tier_use_the_truncated_quote_total(client: TestClient) -> None:
+    # Trace: customer 1001 (GOLD), WIDGET x103, VIP25 -> 329.57.
+    # Quote total 346.92 (513.97 * 0.9 * 0.75 = 346.929..., truncated), then 5% off.
+    body = post_invoice(client, "customer_id=1001&sku=WIDGET&qty=103&coupon=VIP25").json()
+    assert body["total"] == "329.57"
+    assert body["tier_discount_pct"] == 5
+
+
+def test_invoice_small_coupon_case_uses_tier_on_truncated_total(client: TestClient) -> None:
+    # Trace: customer 1002 (SILVER), WIDGET x3, VIP25 -> 10.99 (11.22 then 2% off).
+    body = post_invoice(client, "customer_id=1002&sku=WIDGET&qty=3&coupon=VIP25").json()
+    assert body["total"] == "10.99"
 
 
 # --- coupons ---------------------------------------------------------------- #
