@@ -10,6 +10,7 @@ from archaeology.trace import FORM_CONTENT_TYPE, Request, Trace
 
 from .adapters import Target
 from .compare import compare
+from .identity import IdentityMap
 
 
 @dataclass
@@ -20,6 +21,7 @@ class ReplayResult:
     request_line: str
     matched: bool
     differences: list[str] = field(default_factory=list)
+    rewritten: bool = False
 
 
 @dataclass
@@ -39,6 +41,11 @@ class ReplayReport:
     @property
     def mismatched(self) -> list[ReplayResult]:
         return [r for r in self.results if not r.matched]
+
+    @property
+    def remapped(self) -> int:
+        """Number of requests sent with the rebuild's own identifiers in place of the recorded ones."""
+        return sum(1 for r in self.results if r.rewritten)
 
     @property
     def equivalence(self) -> float:
@@ -82,24 +89,32 @@ def replay(
     """Replay ``traces`` in order against ``target``.
 
     ``ignore`` is a set of volatile JSON paths, or a function that returns
-    one per request. An exception raised by the target is recorded as a
-    mismatch rather than stopping the run. ``on_result`` is called after
-    each trace.
+    one per request. Those paths are also the fields the rebuild may generate
+    differently, so the values they carry are learned into an
+    :class:`IdentityMap`: later requests are sent with the rebuild's own
+    identifiers and later expected responses are compared against them. An
+    exception raised by the target is recorded as a mismatch rather than
+    stopping the run. ``on_result`` is called after each trace.
     """
     report = ReplayReport()
+    identity = IdentityMap()
     for trace in traces:
         ignore_paths = _ignore_for(ignore, trace.request)
+        sent = identity.rewrite_request(trace.request)
+        expected = identity.rewrite_expected(trace.response)
         try:
-            actual = target(trace.request)
+            actual = target(sent)
         except Exception as exc:  # any target failure counts as a mismatch
             differences = [f"error: {type(exc).__name__}: {exc}"]
         else:
-            differences = compare(trace.response, actual, ignore_paths)
+            differences = compare(expected, actual, ignore_paths)
+            identity.learn(trace.response, actual, ignore_paths)
         result = ReplayResult(
             trace_id=trace.id,
             request_line=_request_line(trace.request),
             matched=not differences,
             differences=differences,
+            rewritten=sent is not trace.request,
         )
         report.results.append(result)
         if on_result is not None:
@@ -119,6 +134,8 @@ def render_markdown(report: ReplayReport, max_failures: int = 20) -> str:
         f"Verdict: {verdict}",
         "",
     ]
+    if report.remapped:
+        lines += [f"Identifiers remapped: {report.remapped} requests used the rebuild's own ids", ""]
     failures = report.mismatched
     if failures:
         lines += ["## Mismatches", ""]

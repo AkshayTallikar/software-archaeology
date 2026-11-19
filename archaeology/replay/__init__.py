@@ -2,11 +2,13 @@
 
 from .adapters import AsgiTarget, HttpTarget, ProcessTarget, Target, WsgiTarget, load_target
 from .compare import compare
+from .identity import IdentityMap
 from .runner import ReplayReport, ReplayResult, render_markdown, replay, to_dict
 
 __all__ = [
     "AsgiTarget",
     "HttpTarget",
+    "IdentityMap",
     "ProcessTarget",
     "ReplayReport",
     "ReplayResult",
