@@ -141,7 +141,7 @@ ACME Billing, in CI.
 7. Modern FastAPI rebuild built only from the brief, passing replay at 100%.
 8. README with architecture, how to run and demo output.
 
-## 6. Milestone 2: stateful systems in any language
+## 6. Milestone 2 (done): stateful systems in any language
 
 Milestone 1 proved the loop on one stateless Python service whose ids were
 the only thing that changed between runs. Real legacy systems are neither:
@@ -232,6 +232,17 @@ the reports as a build artifact.
 7. Two-system demo and CI.
 8. Rebuild Pinecrest Library in FastAPI from the brief alone.
 9. README and results for milestone 2.
+
+### 6.8 Result
+
+Pinecrest Library was rebuilt in FastAPI by a coding agent from the brief,
+spec and traces only. It replays 1,115 / 1,115 recorded exchanges, with 821
+requests remapped to the rebuild's own ids. The probe found no divergence in
+3,000 fresh requests and 300 fresh scenario runs against the Node.js service.
+Inference contradicts 10 of the 13 documented claims and recovers the late-fee
+rule exactly. A mutation test shows that replay fails when any of six
+business rules is changed by one step. CI runs both systems end to end and
+publishes the evidence reports.
 
 ## 7. Later milestones
 
