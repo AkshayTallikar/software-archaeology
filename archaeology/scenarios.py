@@ -22,7 +22,9 @@ dotted JSON path in the step's response body (``items.0.isbn``). ``{{name}}``
 is replaced in the path, in ``raw_query``, and in query and form values. A
 variable that was never bound (for example because the step that would have
 captured it failed) is left as the literal placeholder, so the request is
-still sent and the difference is visible in the traces.
+still sent and the difference is visible in the traces. The exception is a
+varied variable whose value is ``null`` in a run: a form or query value that is
+exactly that variable's placeholder is left out of the request altogether.
 """
 
 from __future__ import annotations
@@ -49,6 +51,7 @@ class ScenarioRun:
     run: int
     bindings: dict[str, str]
     steps: list[dict[str, Any]] = field(default_factory=list)
+    omitted: frozenset[str] = frozenset()  # varied variables this run set to null: dropped, not sent
 
     def tag(self, step: int) -> dict[str, Any]:
         """The ``Trace.scenario`` tag for one step of this run.
@@ -121,7 +124,8 @@ def expand_scenarios(workload: dict[str, Any], first_run: int = 0) -> list[Scena
         names = list(vary)
         for combo in itertools.product(*(vary_values(n, vary[n]) for n in names)):
             bindings = {n: v for n, v in zip(names, combo) if v is not None}
-            runs.append(ScenarioRun(template["name"], index, bindings, list(template["steps"])))
+            omitted = frozenset(n for n, v in zip(names, combo) if v is None)
+            runs.append(ScenarioRun(template["name"], index, bindings, list(template["steps"]), omitted))
             index += 1
     return runs
 
@@ -138,11 +142,15 @@ def sample_scenarios(
     for offset in range(count):
         template = rng.choice(templates)
         bindings: dict[str, str] = {}
+        omitted: set[str] = set()
         for name, spec in template.get("vary", {}).items():
             value = sample_value(name, spec, rng)
-            if value is not None:
+            if value is None:
+                omitted.add(name)
+            else:
                 bindings[name] = value
-        runs.append(ScenarioRun(template["name"], first_run + offset, bindings, list(template["steps"])))
+        runs.append(ScenarioRun(template["name"], first_run + offset, bindings, list(template["steps"]),
+                                frozenset(omitted)))
     return runs
 
 
@@ -154,15 +162,28 @@ def substitute(text: str, variables: dict[str, str]) -> str:
     return _PLACEHOLDER.sub(lambda m: variables.get(m.group(1), m.group(0)), text)
 
 
-def render_step(step: dict[str, Any], variables: dict[str, str]) -> Request:
-    """Turn one step spec into a concrete :class:`Request`."""
+def _is_omitted_placeholder(value: Any, omitted: frozenset[str]) -> bool:
+    match = _PLACEHOLDER.fullmatch(str(value))
+    return match is not None and match.group(1) in omitted
+
+
+def render_step(
+    step: dict[str, Any], variables: dict[str, str], omitted: frozenset[str] = frozenset()
+) -> Request:
+    """Turn one step spec into a concrete :class:`Request`.
+
+    A form or query value that is exactly the placeholder of a variable in
+    ``omitted`` (a varied variable that is null in this run) is left out.
+    """
     from .recorder.exerciser import request_from_spec
 
     rendered: dict[str, Any] = {"method": step.get("method", "GET"), "path": substitute(step["path"], variables)}
     for key in ("query", "form"):
         if key in step:
             rendered[key] = {
-                k: substitute(str(v), variables) for k, v in step[key].items() if v is not None
+                k: substitute(str(v), variables)
+                for k, v in step[key].items()
+                if v is not None and not _is_omitted_placeholder(v, omitted)
             }
     if "raw_query" in step:
         rendered["raw_query"] = substitute(step["raw_query"], variables)
@@ -211,7 +232,7 @@ def run_scenario(
     variables = dict(run.bindings)
     exchanges: list[tuple[Request, Response]] = []
     for index, step in enumerate(run.steps):
-        request = render_step(step, variables)
+        request = render_step(step, variables, run.omitted)
         response = send(request)
         apply_captures(step, response, variables)
         exchanges.append((request, response))

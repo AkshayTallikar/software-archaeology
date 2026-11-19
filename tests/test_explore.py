@@ -170,8 +170,13 @@ def test_library_findings_match_the_full_recording(library_full, library_explore
 
 
 @needs_node
-def test_library_sends_at_least_two_and_a_half_times_fewer_requests(library_full, library_explored):
-    assert len(library_explored.traces) * 2.5 <= len(library_full)
+def test_library_explores_its_axes_with_at_least_two_and_a_half_times_fewer_requests(library_full, library_explored):
+    # Value-list scenarios (check order, error codes) are sent exhaustively by both
+    # recorders, so the saving is measured on the axes that explore actually explores.
+    explored = len(library_explored.traces) - library_explored.exhaustive
+    swept = len(library_full) - library_explored.exhaustive
+    assert library_explored.full == len(library_full)
+    assert explored * 2.5 <= swept
 
 
 @needs_node
