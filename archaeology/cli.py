@@ -1,4 +1,4 @@
-"""Command line interface: ``archaeology record | explore | refine | proxy | infer | brief | replay | probe | report | demo``."""
+"""Command line interface: ``archaeology record | explore | refine | proxy | infer | brief | replay | mutate | probe | report | demo``."""
 
 from __future__ import annotations
 
@@ -13,6 +13,7 @@ from typing import Any, Sequence
 
 from .brief import generate_brief
 from .explore import explore_target, render_log
+from . import mutate as mutation
 from .html_report import render_html_report
 from .infer.claims import load_claims
 from .infer.spec import infer_spec, load_spec, render_report, save_spec, volatile_paths_for
@@ -257,6 +258,30 @@ def cmd_probe(args: argparse.Namespace) -> int:
                       json_path=args.json)
 
 
+def cmd_mutate(args: argparse.Namespace) -> int:
+    """Score how well the recording pins the rebuild: replay it against every one-change mutant."""
+    run = mutation.run_mutation(
+        args.rebuild,
+        args.traces,
+        spec=args.spec,
+        module=args.module,
+        max_mutants=args.max_mutants,
+        timeout=args.timeout,
+        jobs=args.jobs,
+    )
+    Path(args.out).write_text(mutation.render_markdown(run), encoding="utf-8")
+    if args.json:
+        Path(args.json).write_text(json.dumps(mutation.to_dict(run), indent=2) + "\n", encoding="utf-8")
+    summary = run.summary()
+    score = "n/a" if summary["score"] is None else f"{summary['score'] * 100:.1f}%"
+    print(
+        f"Mutation score {score}: killed {summary['killed']}, survived {summary['survived']}, "
+        f"errors {summary['errors']} of {run.generated} mutants generated; "
+        f"wall time {run.wall_seconds:.1f} s. Report: {args.out}"
+    )
+    return 0
+
+
 @dataclass(frozen=True)
 class DemoSystem:
     """A bundled legacy system and its rebuild, runnable end to end by ``demo``."""
@@ -390,6 +415,18 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--report", help="write the markdown report here")
     p.add_argument("--json", help="write the JSON report here")
     p.set_defaults(func=cmd_replay)
+
+    p = sub.add_parser("mutate", help="score how well the recording pins a rebuild (mutation testing)")
+    p.add_argument("--rebuild", required=True, help="path to the rebuild's module, e.g. modern_app/main.py")
+    p.add_argument("--module", help="import name of the rebuild (default: derived from --rebuild)")
+    p.add_argument("--traces", required=True)
+    p.add_argument("--spec", required=True, help="spec.json, to ignore volatile fields")
+    p.add_argument("--out", default="mutation.md", help="where to write the markdown report")
+    p.add_argument("--json", help="write the JSON report here")
+    p.add_argument("--max-mutants", type=int, help="score a seeded sample of this many mutants")
+    p.add_argument("--timeout", type=float, default=120.0, help="seconds allowed per mutant")
+    p.add_argument("--jobs", type=int, help="mutants scored in parallel (default: CPU count)")
+    p.set_defaults(func=cmd_mutate)
 
     p = sub.add_parser("probe", help="send fresh generated requests to two systems and diff them")
     p.add_argument("--reference", required=True, help="the legacy system: module:attr or URL")

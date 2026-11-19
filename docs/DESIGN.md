@@ -352,6 +352,70 @@ that is exactly the placeholder of a variable the run omitted is now left out.
 
 ## 8. Milestone 4
 
+### 8.1 Mutation score
+
+The replay proves that a rebuild matches the recording. It does not show that
+the recording pins every rule the rebuild relies on. `archaeology mutate`
+measures that gap. It generates mutants, each a rebuild with one change, and
+replays the whole recording against each one.
+
+Operators (`archaeology/mutate.py`): integer literals move by +1 and -1;
+decimal money literals (`0.25`, `"10.00"`) move by one unit in their last
+decimal place; `<` and `<=`, `>` and `>=`, `==` and `!=` swap; `and` and `or`
+swap; two consecutive `if <cond>: return ...` guards in one function swap
+places. Docstrings, bare expression statements, annotations and booleans
+generate no mutants. Status codes are integer literals and are mutated.
+
+Each mutant is written to a fresh package and replayed in a new process, with
+the same replay engine and spec that prove the rebuild. Process isolation
+keeps module-level state from leaking between mutants. A mutant is **killed**
+when replay is not 100% equivalent, **survived** when every recorded exchange
+still matches, and an **error** when it fails to import or start, or times
+out. Errors are reported apart. The mutation score is
+killed / (killed + survived). The unmutated rebuild must replay 100% before a
+score is computed.
+
+```
+python -m archaeology mutate --rebuild modern_app/main.py \
+    --traces out/traces.jsonl --spec out/spec.json \
+    --out docs/mutation/billing.md --json docs/mutation/billing.json --jobs 4
+```
+
+Measured on the two rebuilds, with the recordings and specs made by
+`archaeology record` and `archaeology infer` (four jobs, four cores):
+
+| | ACME Billing | Pinecrest Library |
+| --- | --- | --- |
+| Mutants generated | 93 | 105 |
+| Killed | 71 | 82 |
+| Survived | 22 | 23 |
+| Errors | 0 | 0 |
+| **Mutation score** | **76.3%** | **78.1%** |
+| Wall time | 590 s | 257 s |
+| Reports | `docs/mutation/billing.md`, `.json` | `docs/mutation/library.md`, `.json` |
+
+The survivors were classified by reading the code and the recording. Of the
+45, 12 are equivalent by construction: the mutated value never changes
+behaviour (the billing `CENT` quantum uses only the exponent of its `Decimal`;
+the library's fee threshold of 500 cents and its id-length divisors at
+8 to 9 and 6 to 7 are equivalent on every reachable value; a fee-state default is overwritten before
+it is read; a dead branch in `handle_customer_tier`). Another 12 survive
+because the replay masks the field: the invoice and loan identifiers, the
+member identifier, and the timestamps are volatile, so their length, format and
+sequence are never compared. The remaining 21 point to rules the recording does
+not pin, for example repeated query or form keys resolving to the first value,
+an invalid quote order where sku and quantity both fail, a quantity of zero on
+an invoice, a missing-sku invoice, a wrong method on `/quote`, a framework 405
+for `TRACE`, a `GET` on an unknown loan, and the check order of fees against the
+loan limit.
+
+The score measures how well the recording pins the rebuild, not whether the
+rebuild is correct. Equivalent survivors lower it without a fault, and masked
+survivors show where comparison rules are missing. Closing the rest needs new
+recorded requests, for example `POST /invoice` without a sku, `GET` on an
+unknown loan, or a fee total of 24.75 that exposes the money formatting, not
+more mutants.
+
 ### 8.2 Refine (`archaeology/refine.py`)
 
 `archaeology refine` closes the evidence gaps of a recording instead of only
