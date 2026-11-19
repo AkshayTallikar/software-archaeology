@@ -12,10 +12,11 @@ from ..trace import Request, Trace
 from .boundaries import detect_boundaries
 from .catalog import build_catalog, endpoint_key_for
 from .claims import check_claims
+from .flows import detect_flows
 from .normalization import detect_normalization
 from .volatility import detect_volatile_fields, volatile_paths
 
-SPEC_VERSION = 1
+SPEC_VERSION = 2
 _VERDICT_ORDER = {"CONTRADICTED": 0, "CONFIRMED": 1, "UNOBSERVED": 2}
 
 
@@ -29,6 +30,7 @@ def infer_spec(traces: Sequence[Trace], claims: Sequence[dict[str, Any]] | None 
         "endpoints": build_catalog(traces),
         "volatile_fields": volatile,
         "boundaries": detect_boundaries(traces),
+        "flows": detect_flows(traces),
         "normalization": detect_normalization(traces, volatile),
         "claims": check_claims(claims, traces) if claims else [],
     }
@@ -49,6 +51,12 @@ def _evidence(claim: dict[str, Any]) -> str:
     if claim["observed"]:
         return f"observed status {claim['observed']['status']}"
     return "no matching trace"
+
+
+def _flows_section(flows: list[dict[str, Any]]) -> list[str]:
+    lines = ["## Identifier flows", ""]
+    lines += [f"- {f['description']}" for f in flows] or ["_None detected._"]
+    return lines + [""]
 
 
 def _claims_section(claims: list[dict[str, Any]]) -> list[str]:
@@ -106,6 +114,8 @@ def render_report(spec: dict[str, Any]) -> str:
     lines += ["## Hidden behaviour", ""]
     lines += [f"- {f['description']}" for f in hidden] or ["_None detected._"]
     lines.append("")
+
+    lines += _flows_section(spec.get("flows", []))
 
     lines += ["## Volatile fields", ""]
     volatile_lines = [

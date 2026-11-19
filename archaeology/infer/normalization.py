@@ -7,8 +7,8 @@ from itertools import combinations
 from typing import Any
 
 from ..trace import Trace
-from .catalog import group_by_endpoint, parse_body
-from .volatility import flatten_json, volatile_paths
+from .catalog import flatten_json, group_by_endpoint, parse_body
+from .volatility import volatile_paths
 
 # (pair kind) -> (behaviour if equivalent, behaviour if not, what the pairs differ by)
 _BEHAVIOURS = {
@@ -18,17 +18,30 @@ _BEHAVIOURS = {
         "whitespace-significant",
         "differing only by surrounding whitespace",
     ),
+    "separator": (
+        "separator-insensitive",
+        "separator-sensitive",
+        "differing only by hyphens or spaces",
+    ),
 }
+_SEPARATORS = str.maketrans("", "", "- ")
+
+
+def _squash(value: str) -> str:
+    """A value with its hyphens and spaces removed, for comparing separators."""
+    return value.translate(_SEPARATORS)
 
 
 def _pair_kind(v: str, w: str) -> str | None:
-    """Classify two different raw values as a case or whitespace variant, else None."""
+    """Classify two different raw values as a case, whitespace or separator variant, else None."""
     if v == w:
         return None
     if v.lower() == w.lower() and v == v.strip() and w == w.strip():
         return "case"
     if v.strip() == w.strip():
         return "whitespace"
+    if _squash(v) == _squash(w):
+        return "separator"
     return None
 
 
@@ -53,9 +66,11 @@ def _param_findings(
             continue
         raw = trace.request.params[param]
         others = tuple(sorted((k, v) for k, v in trace.request.params.items() if k != param))
-        buckets.setdefault((others, raw.strip().lower()), []).append(trace)
+        # Squashing is coarser than trimming and lower-casing, so every case and
+        # whitespace pair still shares a bucket.
+        buckets.setdefault((others, _squash(raw.strip().lower())), []).append(trace)
 
-    outcomes: dict[str, list[bool]] = {"case": [], "whitespace": []}
+    outcomes: dict[str, list[bool]] = {"case": [], "whitespace": [], "separator": []}
     for members in buckets.values():
         for a, b in combinations(members, 2):
             kind = _pair_kind(a.request.params[param], b.request.params[param])

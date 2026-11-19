@@ -5,20 +5,45 @@ from __future__ import annotations
 import json
 import re
 from collections.abc import Sequence
+from datetime import date
 from typing import Any
 
 from ..trace import Response, Trace
 
 _DIGITS = re.compile(r"[0-9]+")
+# Generated identifiers: an optional short prefix (``m_``, ``L-``), then hex with
+# at least six characters. Templated only when they also contain a digit, so
+# ``facade`` and ``deadbeef`` stay literal path words.
+_OPAQUE_ID = re.compile(r"(?:[A-Za-z]{1,4}[-_])?[0-9a-fA-F]{6,}")
+_HAS_DIGIT = re.compile(r"[0-9]")
+_SEPARATED_DIGITS = re.compile(r"[0-9]+(?:-[0-9]+)*-(?:[0-9]+|[Xx])")
+_UUID = re.compile(r"[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}")
+_ISO_DATE = re.compile(r"[0-9]{4}-[0-9]{2}-[0-9]{2}")
 _FLOAT = re.compile(r"-?(\d+\.\d*|\.\d+)([eE][-+]?\d+)?|-?\d+[eE][-+]?\d+")
 _INT = re.compile(r"-?[0-9]+")
 EXAMPLE_LIMIT = 5
 TEXT_EXAMPLE_LIMIT = 3
 
 
+def _is_opaque_id(segment: str) -> bool:
+    """True for a segment that looks generated or catalogue-like.
+
+    That is a UUID, a digit-bearing hex token, or a hyphen-separated run of at
+    least six digits (an ISBN written as ``978-0-00-000001-9``).
+    """
+    if _UUID.fullmatch(segment):
+        return True
+    if _SEPARATED_DIGITS.fullmatch(segment) and sum(c.isdigit() for c in segment) >= 6:
+        return True
+    return _OPAQUE_ID.fullmatch(segment) is not None and _HAS_DIGIT.search(segment) is not None
+
+
 def path_template(path: str) -> str:
-    """Replace every all-digit path segment with ``{id}``."""
-    return "/".join("{id}" if _DIGITS.fullmatch(seg) else seg for seg in path.split("/"))
+    """Replace every all-digit or opaque identifier path segment with ``{id}``."""
+    return "/".join(
+        "{id}" if _DIGITS.fullmatch(seg) or _is_opaque_id(seg) else seg
+        for seg in path.split("/")
+    )
 
 
 def endpoint_key_for(method: str, path: str) -> str:
@@ -39,8 +64,19 @@ def group_by_endpoint(traces: Sequence[Trace]) -> dict[str, list[Trace]]:
     return groups
 
 
+def is_iso_date(value: str) -> bool:
+    """True for a valid calendar date written ``YYYY-MM-DD``."""
+    if _ISO_DATE.fullmatch(value) is None:
+        return False
+    try:
+        date.fromisoformat(value)
+    except ValueError:
+        return False
+    return True
+
+
 def value_type(value: str) -> str:
-    """Classify a raw parameter value as empty, int, float or str."""
+    """Classify a raw parameter value as empty, int, float, date or str."""
     if value == "":
         return "empty"
     if _INT.fullmatch(value):
@@ -49,7 +85,23 @@ def value_type(value: str) -> str:
     # "inf", which are strings as far as the caller sent them.
     if _FLOAT.fullmatch(value):
         return "float"
+    if is_iso_date(value):
+        return "date"
     return "str"
+
+
+def flatten_json(obj: Any, prefix: str = "") -> dict[str, Any]:
+    """Flatten nested JSON objects into ``{"a.b.c": leaf}``; lists are leaves."""
+    if not isinstance(obj, dict):
+        return {prefix: obj}
+    flat: dict[str, Any] = {}
+    for key, value in obj.items():
+        path = f"{prefix}.{key}" if prefix else str(key)
+        if isinstance(value, dict):
+            flat.update(flatten_json(value, path))
+        else:
+            flat[path] = value
+    return flat
 
 
 def json_type(value: Any) -> str:
