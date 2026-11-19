@@ -12,10 +12,12 @@ from typing import Any, Sequence
 from .brief import generate_brief
 from .infer.claims import load_claims
 from .infer.spec import infer_spec, load_spec, render_report, save_spec, volatile_paths_for
-from .probe import generate_requests, probe
+from .probe import generate_requests, merge_reports, probe, probe_scenarios
 from .probe import render_markdown as render_probe
+from .probe import to_dict as probe_to_dict
 from .recorder import load_workload, record
 from .replay import load_target, render_markdown, replay, to_dict
+from .scenarios import sample_scenarios
 from .trace import read_traces
 
 
@@ -92,12 +94,24 @@ def cmd_replay(args: argparse.Namespace) -> int:
 
 
 def _run_probe(reference: str, candidate: str, spec_path: str, traces_path: str,
-               count: int, seed: int, report_path: str | None) -> int:
+               count: int, seed: int, report_path: str | None,
+               workload_path: str | None = None, scenario_count: int = 0,
+               json_path: str | None = None) -> int:
+    """Probe two systems with fresh requests and, given a workload, fresh scenario runs.
+
+    Only stateless traces seed the fresh requests. Scenario runs are sampled
+    from ``workload_path`` and probed on the same two targets; their steps are
+    merged into the same report.
+    """
     spec = load_spec(spec_path)
-    requests = generate_requests(spec, read_traces(traces_path), count, seed=seed)
+    traces = read_traces(traces_path)
+    requests = generate_requests(spec, [t for t in traces if t.scenario is None], count, seed=seed)
+    runs = sample_scenarios(load_workload(workload_path), scenario_count, seed=seed) if workload_path else []
     targets = [load_target(reference), load_target(candidate)]
     try:
         report = probe(targets[0], targets[1], requests, spec)
+        if runs:
+            report = merge_reports(report, probe_scenarios(targets[0], targets[1], runs, spec))
     finally:
         for target in targets:
             close = getattr(target, "close", None)
@@ -106,12 +120,16 @@ def _run_probe(reference: str, candidate: str, spec_path: str, traces_path: str,
     markdown = render_probe(report)
     if report_path:
         Path(report_path).write_text(markdown, encoding="utf-8")
+    if json_path:
+        Path(json_path).write_text(json.dumps(probe_to_dict(report), indent=2), encoding="utf-8")
     print(markdown.split("\n## ")[0].strip())
     return 0 if not report.divergences else 1
 
 
 def cmd_probe(args: argparse.Namespace) -> int:
-    return _run_probe(args.reference, args.candidate, args.spec, args.traces, args.count, args.seed, args.report)
+    return _run_probe(args.reference, args.candidate, args.spec, args.traces, args.count, args.seed,
+                      args.report, workload_path=args.workload, scenario_count=args.scenario_count,
+                      json_path=args.json)
 
 
 def cmd_demo(args: argparse.Namespace) -> int:
@@ -173,7 +191,11 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--traces", required=True, help="recorded traces, for observed parameter values")
     p.add_argument("--count", type=int, default=3000)
     p.add_argument("--seed", type=int, default=0)
+    p.add_argument("--workload", help="workload with scenarios to probe as fresh multi-step runs")
+    p.add_argument("--scenario-count", type=int, default=300,
+                   help="how many scenario runs to sample from --workload")
     p.add_argument("--report", help="write the markdown report here")
+    p.add_argument("--json", help="write the JSON report here")
     p.set_defaults(func=cmd_probe)
 
     p = sub.add_parser("demo", help="run the whole pipeline on the bundled ACME Billing system")
