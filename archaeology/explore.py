@@ -597,6 +597,8 @@ def render_log(result: ExploreResult) -> str:
         f"- Requests sent: {sent}",
         f"- Full recording would send: {result.full}",
         f"- Savings: {ratio:.2f}x fewer requests",
+        f"- On the explored axes alone: {adaptive} requests against {result.full - result.exhaustive} "
+        f"({(result.full - result.exhaustive) / adaptive if adaptive else float('inf'):.2f}x fewer)",
         "",
     ]
     return "\n".join(lines)
