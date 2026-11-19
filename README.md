@@ -1,5 +1,7 @@
 # Software Archaeology Engine
 
+[![CI](https://github.com/AkshayTallikar/software-archaeology/actions/workflows/ci.yml/badge.svg)](https://github.com/AkshayTallikar/software-archaeology/actions/workflows/ci.yml) [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE) ![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-blue.svg)
+
 **Rewrite a legacy system from what it actually does, not from what its documentation says, and prove the rewrite is equivalent.**
 
 Rewrites usually fail on behaviour nobody wrote down: the discount that starts at 101 units instead of 100, the error that comes back as HTTP 200, the quantity that is silently clamped. Documentation describes what the system was meant to do. Users depend on what it does.
@@ -10,6 +12,10 @@ This engine treats the running system as the only trustworthy specification:
 2. **Interpret**: infer its true behaviour from the recordings, and test every documented claim against that evidence.
 3. **Rebuild**: hand coding agents a brief built only from evidence. They never see the legacy source or docs.
 4. **Prove**: replay every recorded exchange against the rebuild, then probe both systems with fresh inputs nobody recorded.
+
+![Evidence report excerpt: the Pinecrest late-fee rule recovered from recorded traffic, with replay and probe verdicts](docs/images/late-fee-evidence.svg)
+
+*An excerpt from the HTML evidence report (`archaeology report`). The engine never read the legacy JavaScript. CI builds the full report for both systems on every run and publishes it as the `evidence-reports` artifact.*
 
 It ships with two legacy systems to excavate, each with wrong documentation and an answer key, and a rebuild of each that a coding agent wrote from the evidence alone:
 
@@ -179,3 +185,7 @@ docs/DESIGN.md      problem, principles, architecture, milestones
 - Close the open questions automatically: turn each ambiguity a rebuild agent reports into a new scenario, record it, and re-check.
 - Closed agent loop: an orchestrator that feeds replay and probe diffs back to the rebuild agents until both pass.
 - Concurrency: record interleaved clients and check the rebuild under the same interleavings.
+
+## License
+
+[MIT](LICENSE)
