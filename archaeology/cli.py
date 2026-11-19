@@ -1,4 +1,4 @@
-"""Command line interface: ``archaeology record | infer | brief | replay | probe | demo``."""
+"""Command line interface: ``archaeology record | proxy | infer | brief | replay | probe | demo``."""
 
 from __future__ import annotations
 
@@ -6,6 +6,7 @@ import argparse
 import importlib
 import json
 import sys
+import time
 from pathlib import Path
 from typing import Any, Sequence
 
@@ -15,7 +16,7 @@ from .infer.spec import infer_spec, load_spec, render_report, save_spec, volatil
 from .probe import generate_requests, merge_reports, probe, probe_scenarios
 from .probe import render_markdown as render_probe
 from .probe import to_dict as probe_to_dict
-from .recorder import load_workload, record
+from .recorder import JsonlSink, RecordingProxy, load_workload, record, record_target
 from .replay import load_target, render_markdown, replay, to_dict
 from .scenarios import sample_scenarios
 from .trace import read_traces
@@ -38,9 +39,64 @@ def _resolve_wsgi_app(spec: str) -> Any:
 
 
 def cmd_record(args: argparse.Namespace) -> int:
-    app = _resolve_wsgi_app(args.app)
-    count = record(app, load_workload(args.workload), args.out)
+    workload = load_workload(args.workload)
+    if args.target:
+        target = load_target(args.target)
+        try:
+            count = record_target(target, workload, args.out)
+        finally:
+            close = getattr(target, "close", None)
+            if callable(close):
+                close()
+    else:
+        count = record(_resolve_wsgi_app(args.app), workload, args.out)
     print(f"Recorded {count} exchanges to {args.out}")
+    return 0
+
+
+def _parse_listen(listen: str) -> tuple[str, int]:
+    """``HOST:PORT`` into its parts; port 0 asks the OS for a free port."""
+    host, sep, port = listen.rpartition(":")
+    if not sep or not host:
+        raise ValueError(f"--listen must be HOST:PORT, got {listen!r}")
+    return host, int(port)
+
+
+def start_recording_proxy(
+    upstream: str, listen: str, out: str | Path, append: bool = False
+) -> tuple[RecordingProxy, JsonlSink]:
+    """Start a :class:`RecordingProxy` writing to a JSON Lines file. Returns ``(proxy, sink)``.
+
+    The caller stops the proxy and closes the sink. This does not block, so
+    tests can drive the proxy directly.
+    """
+    host, port = _parse_listen(listen)
+    sink = JsonlSink(out, append=append)
+    try:
+        proxy = RecordingProxy(upstream, sink, host=host, port=port).start()
+    except Exception:
+        sink.close()
+        raise
+    return proxy, sink
+
+
+def _wait_forever() -> None:
+    """Block the main thread until interrupted."""
+    while True:
+        time.sleep(3600)
+
+
+def cmd_proxy(args: argparse.Namespace) -> int:
+    proxy, sink = start_recording_proxy(args.upstream, args.listen, args.out, args.append)
+    print(f"Recording proxy listening on {proxy.url}, forwarding to {args.upstream}, recording to {args.out}")
+    try:
+        _wait_forever()
+    except KeyboardInterrupt:
+        pass
+    finally:
+        proxy.stop()
+        sink.close()
+    print(f"Stopped. Recorded {proxy.count} exchanges to {args.out}")
     return 0
 
 
@@ -137,7 +193,8 @@ def cmd_demo(args: argparse.Namespace) -> int:
     out.mkdir(parents=True, exist_ok=True)
     traces, spec, report, brief = (out / n for n in ("traces.jsonl", "spec.json", "report.md", "brief.md"))
     print("== 1. Excavate: recording the legacy system ==")
-    cmd_record(argparse.Namespace(app="legacy_app.billing:make_app", workload="legacy_app/workload.json", out=str(traces)))
+    cmd_record(argparse.Namespace(app="legacy_app.billing:make_app", target=None,
+                                  workload="legacy_app/workload.json", out=str(traces)))
     print("\n== 2. Interpret: inferring its true behaviour ==")
     cmd_infer(argparse.Namespace(traces=str(traces), claims="legacy_app/claims.json", spec=str(spec), report=str(report)))
     print("\n== 3. Rebuild: writing the brief for coding agents ==")
@@ -155,11 +212,23 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="archaeology", description=__doc__)
     sub = parser.add_subparsers(dest="command", required=True)
 
-    p = sub.add_parser("record", help="drive a WSGI app with a workload and record traces")
-    p.add_argument("--app", required=True, help="module:attr of a WSGI app or make_* factory")
+    p = sub.add_parser("record", help="drive a system with a workload and record traces")
+    source = p.add_mutually_exclusive_group(required=True)
+    source.add_argument("--app", help="module:attr of an in-process WSGI app or make_* factory")
+    source.add_argument(
+        "--target",
+        help="any target spec: module:attr (WSGI or ASGI), cmd:<command> or an http(s) base URL",
+    )
     p.add_argument("--workload", required=True)
     p.add_argument("--out", default="traces.jsonl")
     p.set_defaults(func=cmd_record)
+
+    p = sub.add_parser("proxy", help="record the real traffic of a live system passing through a proxy")
+    p.add_argument("--upstream", required=True, help="base URL of the live system")
+    p.add_argument("--listen", default="127.0.0.1:8080", help="HOST:PORT to listen on")
+    p.add_argument("--out", default="traces.jsonl")
+    p.add_argument("--append", action="store_true", help="append to --out instead of overwriting it")
+    p.set_defaults(func=cmd_proxy)
 
     p = sub.add_parser("infer", help="infer the system's true behaviour from traces")
     p.add_argument("--traces", required=True)
