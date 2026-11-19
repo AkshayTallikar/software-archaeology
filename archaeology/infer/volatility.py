@@ -7,6 +7,7 @@ import re
 from collections.abc import Sequence
 from typing import Any
 
+from ..scenarios import scenario_family
 from ..trace import Trace
 from .catalog import flatten_json, group_by_endpoint, json_object
 from .flows import detect_flows
@@ -64,7 +65,7 @@ def _position(trace: Trace) -> tuple[str, str, int] | None:
     """Where a trace sits in a recording: its scenario name and step, or None if stateless."""
     if trace.scenario is None:
         return None
-    return ("scenario", str(trace.scenario["name"]), int(trace.scenario["step"]))
+    return ("scenario", scenario_family(str(trace.scenario["name"])), int(trace.scenario["step"]))
 
 
 def _endpoint_volatility(group: Sequence[Trace]) -> list[dict[str, str]]:

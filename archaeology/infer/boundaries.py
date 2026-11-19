@@ -25,6 +25,7 @@ from datetime import date
 from decimal import Decimal
 from typing import Any
 
+from ..scenarios import scenario_family
 from ..trace import Trace
 from .catalog import endpoint_key, group_by_endpoint, json_object, value_type
 
@@ -483,11 +484,11 @@ def _sweeps(
 
 
 def _scenario_steps(traces: Sequence[Trace]) -> dict[tuple[str, int], list[Trace]]:
-    """Scenario traces grouped by (scenario name, step index)."""
+    """Scenario traces grouped by (scenario family, step index); variants count with their template."""
     steps: dict[tuple[str, int], list[Trace]] = {}
     for trace in traces:
         if trace.scenario is not None:
-            key = (str(trace.scenario["name"]), int(trace.scenario["step"]))
+            key = (scenario_family(str(trace.scenario["name"])), int(trace.scenario["step"]))
             steps.setdefault(key, []).append(trace)
     return steps
 
