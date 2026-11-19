@@ -21,6 +21,7 @@ from typing import Any, Iterable, Sequence
 
 from .infer.boundaries import evidence_note
 from .infer.catalog import endpoint_key, flatten_json, json_object, value_type
+from .scenarios import scenario_family
 from .trace import Trace
 
 MAX_SCENARIO_RUNS = 10
@@ -238,7 +239,7 @@ def _scenario_section(spec: dict[str, Any], traces: Sequence[Trace]) -> list[str
 
     by_scenario: "OrderedDict[str, dict[int, list[Trace]]]" = OrderedDict()
     for trace in scenario_traces:
-        name = str(trace.scenario["name"])
+        name = scenario_family(str(trace.scenario["name"]))
         by_scenario.setdefault(name, {}).setdefault(int(trace.scenario["run"]), []).append(trace)
 
     boundaries = spec.get("boundaries", [])

@@ -1,4 +1,4 @@
-"""Command line interface: ``archaeology record | explore | proxy | infer | brief | replay | mutate | probe | report | demo``."""
+"""Command line interface: ``archaeology record | explore | refine | proxy | infer | brief | replay | mutate | probe | report | demo``."""
 
 from __future__ import annotations
 
@@ -21,6 +21,7 @@ from .probe import generate_requests, merge_reports, probe, probe_scenarios
 from .probe import render_markdown as render_probe
 from .probe import to_dict as probe_to_dict
 from .recorder import JsonlSink, RecordingProxy, load_workload, record, record_target
+from .refine import refine, render_refine_log
 from .replay import load_target, render_markdown, replay, to_dict
 from .scenarios import sample_scenarios
 from .trace import read_traces, write_traces
@@ -79,6 +80,33 @@ def cmd_explore(args: argparse.Namespace) -> int:
     print(
         f"Explored {len(result.traces)} exchanges (full recording: {result.full}, {ratio:.2f}x fewer) "
         f"to {args.out}  Log: {args.log}"
+    )
+    return 0
+
+
+def cmd_refine(args: argparse.Namespace) -> int:
+    """Close a recording's evidence gaps with workload additions, recorded against the target."""
+    workload = load_workload(args.workload)
+    traces = read_traces(args.traces)
+    claims = load_claims(args.claims) if args.claims else []
+    if args.target:
+        target = load_target(args.target)
+    else:
+        app = _resolve_wsgi_app(args.app)
+        target = lambda request: call_wsgi(app, request)  # noqa: E731
+    try:
+        result = refine(target, workload, traces, claims, rounds=args.rounds)
+    finally:
+        close = getattr(target, "close", None)
+        if callable(close):
+            close()
+    write_traces(args.out_traces, result.traces)
+    Path(args.out_workload).write_text(json.dumps(result.workload, indent=2) + "\n", encoding="utf-8")
+    Path(args.log).write_text(render_refine_log(result), encoding="utf-8")
+    print(
+        f"Refined {len(result.initial_gaps)} evidence gaps to {len(result.final_gaps)} in {result.rounds} "
+        f"round(s), recording {result.added} additional exchanges. Traces: {args.out_traces}  "
+        f"Workload: {args.out_workload}  Log: {args.log}"
     )
     return 0
 
@@ -341,6 +369,22 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--out", default="traces.jsonl")
     p.add_argument("--log", default="explore.md", help="where to write the exploration log")
     p.set_defaults(func=cmd_explore)
+
+    p = sub.add_parser("refine", help="close thin-evidence gaps with workload additions, recorded against a system")
+    source = p.add_mutually_exclusive_group(required=True)
+    source.add_argument("--app", help="module:attr of an in-process WSGI app or make_* factory")
+    source.add_argument(
+        "--target",
+        help="any target spec: module:attr (WSGI or ASGI), cmd:<command> or an http(s) base URL",
+    )
+    p.add_argument("--workload", required=True, help="the workload the traces were recorded from")
+    p.add_argument("--traces", required=True, help="the full recording of that workload")
+    p.add_argument("--claims", help="documented claims: named values for few-values gaps")
+    p.add_argument("--out-workload", default="workload.refined.json")
+    p.add_argument("--out-traces", default="traces.refined.jsonl", help="the original traces plus the new ones")
+    p.add_argument("--log", default="refine.md", help="where to write the refinement log")
+    p.add_argument("--rounds", type=int, default=3, help="at most this many rounds of additions")
+    p.set_defaults(func=cmd_refine)
 
     p = sub.add_parser("proxy", help="record the real traffic of a live system passing through a proxy")
     p.add_argument("--upstream", required=True, help="base URL of the live system")

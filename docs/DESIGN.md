@@ -416,6 +416,64 @@ recorded requests, for example `POST /invoice` without a sku, `GET` on an
 unknown loan, or a fee total of 24.75 that exposes the money formatting, not
 more mutants.
 
+### 8.2 Refine (`archaeology/refine.py`)
+
+`archaeology refine` closes the evidence gaps of a recording instead of only
+listing them. Each gap carries a machine-readable `data` field (endpoint, method,
+path, parameter or scenario variable, bracketing inputs, observed values and
+statuses, and for an inexact change every context that shares the bracket), so the
+generator reads facts rather than prose. Each actionable gap becomes a workload
+addition:
+
+* `inexact_change`: a sweep of every unsampled input strictly between the two
+  bracketing samples, once per context that shares the bracket. For a scenario
+  variable, one copy of the template per context, named with a suffix
+  (`late-return~refine1`), whose `vary` holds the unsampled values.
+* `single_status`: requests that try an unknown path id in the format the catalog
+  inferred (same prefix, length and charset as the observed ids), each invalid value
+  already seen for that parameter name elsewhere in the traces, and the request
+  with each required parameter left out.
+* `few_values`: one request or run with a third value: a value a claim names for
+  that parameter, else an obviously invalid value.
+
+`failed_capture` (a placeholder left in the workload) and `unobserved_claim` are
+logged with the reason and not acted on. Refine never modifies the workload.
+
+Each round records the additions against the target, appends the traces, infers
+the spec again and recomputes the gaps. A gap that no longer appears is *closed*.
+A gap that remains after its additions ran is *explained*, and the log quotes the
+statuses its additions drew. Scenario variants count with their template
+(`scenario_family`), so the values a variant adds reach the template's sweeps.
+
+Refine assumes a fresh target and a full recording (`record`, not `explore`). It
+replays the workload silently to reach the state the recording was made in, then
+records only the additions, so the appended traces continue the recording in order.
+
+Results. Both refinements took one round. The refined workloads are
+`legacy_app/workload.refined.json` and `legacy_library/workload.refined.json`, and
+the logs are `docs/refine/billing.md` and `docs/refine/library.md`.
+
+| | ACME Billing | Pinecrest Library |
+| --- | --- | --- |
+| Gaps before | 9 (7 inexact, 1 few values, 1 single status) | 8 (2 few values, 2 single status, 4 failed capture) |
+| Closed | 8 (all 7 inexact changes, the coupon values) | 3 (both tier few values, `GET /loans/{id}`) |
+| Explained | 1 (`GET /customer/{id}/tier`) | 1 (`GET /books`) |
+| Not acted on | 1 (`GET /customer/abc/tier`, which appeared when the invalid-id request added a second 404; it has no id to vary) | 4 (failed captures) |
+| Requests added | 78 | 16 |
+| Replay of the rebuild | 3,304 / 3,304 | 1,580 / 1,580 |
+| Probe of the rebuild | 3,000 / 3,000 | 5,064 / 5,064 |
+
+The explained billing gap is a real single status. Every numeric customer id
+returns 200, including unseen ones such as 8942 and 1315. The only 404 comes from
+`abc`, which the catalog treats as a literal path, not an id. The explained library
+gap is `GET /books`: removing `per_page` still returns 200, and no invalid page
+value was ever sent.
+
+The refined library recording also shows the legacy accepting an unknown
+membership tier: `POST /members` with `tier=gold` and with `tier=refine-invalid`
+both return 201 and store `standard`. That contradicts claim L2, and the rebuild
+reproduces it. Neither system diverged anywhere the refinement looked.
+
 ## 9. Later milestones
 
 * Targeted probing: generate requests to test UNOBSERVED claims. Boundary

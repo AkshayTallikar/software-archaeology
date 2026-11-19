@@ -17,8 +17,12 @@ Five kinds of gap come out of a recording:
   earlier step never bound. Such requests are excluded from ``single_status``.
 * ``unobserved_claim``: a documented claim that no recorded exchange tests.
 
-Each gap is ``{kind, where, detail, suggestion}``; ``suggestion`` is one line of
-workload to add or fix, in plain words.
+Each gap is ``{kind, where, detail, suggestion, data}``; ``suggestion`` is one
+line of workload to add or fix, in plain words. ``data`` holds the same facts in
+machine-readable form (endpoint, method, path, parameter or scenario variable,
+bracketing inputs, observed values or statuses, and for inexact changes the
+contexts whose sampled inputs bracket the change), so a tool can act on a gap
+without parsing its text. The text fields are unchanged by ``data``.
 """
 
 from __future__ import annotations
@@ -28,8 +32,11 @@ from collections import Counter, defaultdict
 from collections.abc import Sequence
 from typing import Any
 
-from ..trace import Trace
-from .catalog import endpoint_key
+from datetime import date
+
+from ..scenarios import scenario_family
+from ..trace import FORM_CONTENT_TYPE, Trace
+from .catalog import endpoint_key, path_template, value_type
 
 FEW_VALUES = 3  # two distinct values is thin; three or more is varied
 MIN_STATUS_REQUESTS = 2  # one request cannot show a status change, so it is not reported
@@ -45,7 +52,7 @@ def detect_evidence_gaps(
     """All evidence gaps in the recording, grouped by kind in a fixed order."""
     traces = list(traces)
     return (
-        _inexact_changes(boundaries)
+        _inexact_changes(boundaries, traces)
         + _few_values(traces)
         + _single_statuses(traces)
         + _failed_captures(traces)
@@ -53,8 +60,61 @@ def detect_evidence_gaps(
     )
 
 
-def _gap(kind: str, where: str, detail: str, suggestion: str) -> dict[str, Any]:
-    return {"kind": kind, "where": where, "detail": detail, "suggestion": suggestion}
+def _gap(kind: str, where: str, detail: str, suggestion: str, data: dict[str, Any] | None = None) -> dict[str, Any]:
+    return {"kind": kind, "where": where, "detail": detail, "suggestion": suggestion, "data": data or {}}
+
+
+def _position(raw: str) -> tuple[str, int] | None:
+    """``(axis, position)`` for a raw integer or ISO date input, else None."""
+    kind = value_type(raw)
+    if kind == "int":
+        return "int", int(raw)
+    if kind == "date":
+        return "date", date.fromisoformat(raw).toordinal()
+    return None
+
+
+def _location(trace: Trace) -> str:
+    """Where a stateless request's parameters travel: ``form`` for form bodies, else ``query``."""
+    return "form" if trace.request.content_type == FORM_CONTENT_TYPE and trace.request.body else "query"
+
+
+def _bracket_contexts(rows: Sequence[tuple[Trace, dict[str, str]]], param: str, lo: str, hi: str) -> list[dict[str, str]]:
+    """The contexts in which ``lo`` and ``hi`` are both sampled with no sampled input between them.
+
+    ``rows`` pairs each trace with the inputs it was sent with (request parameters,
+    or a scenario run's varied values). A context is the other inputs.
+    """
+    bracket = _position(lo)
+    if bracket is None or _position(hi) is None or _position(hi)[0] != bracket[0]:
+        return []
+    axis, low, high = bracket[0], bracket[1], _position(hi)[1]
+    groups: dict[tuple[tuple[str, str], ...], set[int]] = defaultdict(set)
+    for _, values in rows:
+        raw = values.get(param)
+        position = _position(raw) if isinstance(raw, str) else None
+        if position is None or position[0] != axis:
+            continue
+        context = tuple(sorted((k, v) for k, v in values.items() if k != param))
+        groups[context].add(position[1])
+    return [
+        dict(context)
+        for context, positions in sorted(groups.items())
+        if low in positions and high in positions and not any(low < p < high for p in positions)
+    ]
+
+
+def _endpoint_rows(traces: Sequence[Trace], endpoint: str) -> list[tuple[Trace, dict[str, str]]]:
+    return [(t, t.request.params) for t in traces if t.scenario is None and endpoint_key(t) == endpoint]
+
+
+def _scenario_rows(traces: Sequence[Trace], name: str, step: int) -> list[tuple[Trace, dict[str, str]]]:
+    return [
+        (t, {k: str(v) for k, v in (t.scenario.get("vars") or {}).items()})
+        for t in traces
+        if t.scenario is not None and scenario_family(str(t.scenario["name"])) == name
+        and int(t.scenario["step"]) == step
+    ]
 
 
 def _or_join(items: Sequence[str]) -> str:
@@ -76,7 +136,35 @@ def _finding_base(finding: dict[str, Any]) -> str:
 # --- inexact change points ---------------------------------------------------
 
 
-def _inexact_changes(boundaries: Sequence[dict[str, Any]]) -> list[dict[str, Any]]:
+def _inexact_data(finding: dict[str, Any], traces: Sequence[Trace], lo: str, hi: str) -> dict[str, Any]:
+    """The machine-readable facts of one inexact change: its bracket, and every context that shares it."""
+    param = finding["param"]
+    if finding.get("scenario") is None:
+        rows = _endpoint_rows(traces, finding["endpoint"])
+        sample = next(t for t, v in rows if str(v.get(param)) in (lo, hi))
+        data: dict[str, Any] = {
+            "endpoint": finding["endpoint"],
+            "method": sample.request.method,
+            "path": sample.request.path,
+            "location": _location(sample),
+            "scenario": None,
+            "step": None,
+        }
+    else:
+        rows = _scenario_rows(traces, finding["scenario"], int(finding["step"]))
+        data = {"endpoint": finding["endpoint"], "scenario": finding["scenario"], "step": int(finding["step"])}
+    data.update({
+        "param": param,
+        "field": finding["field"],
+        "axis": "date" if value_type(lo) == "date" else "int",
+        "lo": lo,
+        "hi": hi,
+        "contexts": _bracket_contexts(rows, param, lo, hi),
+    })
+    return data
+
+
+def _inexact_changes(boundaries: Sequence[dict[str, Any]], traces: Sequence[Trace]) -> list[dict[str, Any]]:
     """One gap per inexact change; a bracket that several contexts share is reported once."""
     grouped: dict[tuple[str, str, str, str, str], dict[str, Any]] = {}
     for finding in boundaries:
@@ -111,6 +199,7 @@ def _inexact_changes(boundaries: Sequence[dict[str, Any]]) -> list[dict[str, Any
                 f"{field} changes somewhere between sampled {lo} and {hi}; "
                 f"{entry['unsampled']} inputs between them were never sent",
                 fix,
+                _inexact_data(finding, traces, lo, hi),
             )
         )
     return gaps
@@ -133,7 +222,7 @@ def _input_values(
                 counts[key] += 1
         else:
             for name, value in (trace.scenario.get("vars") or {}).items():
-                key = ("scenario", str(trace.scenario["name"]), name)
+                key = ("scenario", scenario_family(str(trace.scenario["name"])), name)
                 values[key].add(str(value))
                 counts[key] += 1
     return values, counts
@@ -151,10 +240,16 @@ def _few_values(traces: Sequence[Trace]) -> list[dict[str, Any]]:
         if owner_kind == "request":
             where = f"{owner} parameter {name}"
             fix = f"add {owner} requests that try {name} with a third value, such as one the documentation names"
+            sample = next(t for t in traces if t.scenario is None and endpoint_key(t) == owner
+                          and name in t.request.params)
+            data = {"kind": "request", "endpoint": owner, "method": sample.request.method,
+                    "path": sample.request.path, "location": _location(sample)}
         else:
             where = f"scenario {owner} variable {name}"
             fix = f"add runs of scenario {owner} with {name} set to a third value"
-        gaps.append(_gap("few_values", where, f"only {listed} seen, across {counts[key]} requests", fix))
+            data = {"kind": "scenario", "scenario": owner}
+        data.update({"param": name, "seen": seen})
+        gaps.append(_gap("few_values", where, f"only {listed} seen, across {counts[key]} requests", fix, data))
     return gaps
 
 
@@ -192,12 +287,23 @@ def _single_statuses(traces: Sequence[Trace]) -> list[dict[str, Any]]:
         if len(statuses) != 1 or len(group) < MIN_STATUS_REQUESTS:
             continue
         status = next(iter(statuses))
+        method, _, _ = endpoint.partition(" ")
+        sample = group[0]
         gaps.append(
             _gap(
                 "single_status",
                 endpoint,
                 f"only HTTP {status} seen, across {len(group)} requests",
                 f"add {_error_probes(endpoint)} to see its other statuses",
+                {
+                    "endpoint": endpoint,
+                    "method": method,
+                    "path": sample.request.path,
+                    "template": path_template(sample.request.path),
+                    "location": _location(sample),
+                    "statuses": [status],
+                    "requests": len(group),
+                },
             )
         )
     return gaps
@@ -217,7 +323,7 @@ def _failed_captures(traces: Sequence[Trace]) -> list[dict[str, Any]]:
     for trace in traces:
         if trace.scenario is None:
             continue
-        name, step = str(trace.scenario["name"]), int(trace.scenario["step"])
+        name, step = scenario_family(str(trace.scenario["name"])), int(trace.scenario["step"])
         varied[name].update((trace.scenario.get("vars") or {}).keys())
         runs[(name, step)] += 1
         names = _placeholders(trace)
@@ -251,6 +357,14 @@ def _failed_captures(traces: Sequence[Trace]) -> list[dict[str, Any]]:
                 f"scenario {name} step {step} ({entry['endpoint']})",
                 "; ".join(details),
                 f"in scenario {name}, " + "; ".join(fixes),
+                {
+                    "scenario": name,
+                    "step": step,
+                    "endpoint": entry["endpoint"],
+                    "unbound": unbound,
+                    "from_varied": from_varied,
+                    "from_capture": from_capture,
+                },
             )
         )
     return gaps
@@ -278,6 +392,7 @@ def _unobserved_claims(claims: Sequence[dict[str, Any]]) -> list[dict[str, Any]]
             f"claim {claim['id']}",
             f"no recorded exchange tests \"{claim['text']}\"",
             f"add {_claim_request_text(claim['request'])} to the workload",
+            {"claim": claim["id"], "request": claim["request"]},
         )
         for claim in claims
         if claim.get("verdict") == "UNOBSERVED"
