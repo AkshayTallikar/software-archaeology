@@ -305,18 +305,14 @@ def loan_body(loan: Loan, title: str) -> dict:
 
 
 def loan_detail_body(loan: Loan, title: str) -> dict:
-    return {
-        "loan_id": loan.loan_id,
-        "member_id": loan.member_id,
-        "isbn": loan.isbn,
-        "title": title,
-        "borrowed_on": loan.borrowed_on.isoformat(),
-        "due_on": loan.due_on.isoformat(),
-        "returned_on": loan.returned_on.isoformat() if loan.returned_on else None,
-        "days_late": loan.days_late,
-        "fee": money(loan.fee_cents),
-        "status": "active" if loan.active else "returned",
-    }
+    # An active loan shows only the loan fields. A returned loan adds the
+    # return fields after status, in that order (t-000133, t-001526).
+    body = loan_body(loan, title)
+    if not loan.active:
+        body["returned_on"] = loan.returned_on.isoformat()
+        body["days_late"] = loan.days_late
+        body["fee"] = money(loan.fee_cents)
+    return body
 
 
 def return_body(loan: Loan) -> dict:
@@ -427,11 +423,12 @@ def make_app() -> FastAPI:
         if lib.fees_due_cents(member.member_id) >= FEE_BORROW_BLOCK_CENTS:
             return error(403, "FEES_OUTSTANDING")
 
-        if not lib.is_available(isbn):
-            return error(409, "BOOK_UNAVAILABLE")
-
+        # The loan limit is checked before availability (t-001471).
         if len(lib.active_loans_for(member.member_id)) >= MAX_ACTIVE_LOANS:
             return error(409, "LOAN_LIMIT")
+
+        if not lib.is_available(isbn):
+            return error(409, "BOOK_UNAVAILABLE")
 
         period = LOAN_PERIOD_DAYS[member.tier]
         loan = Loan(
@@ -464,6 +461,11 @@ def make_app() -> FastAPI:
         # Returning a loan twice is not an error: the stored result is repeated
         # and the first returned_on is kept (the documented 409 is wrong).
         if loan.active:
+            # A return dated before the borrow date is refused and the loan
+            # stays active (t-001550, t-001551). A return dated on the borrow
+            # date is accepted (six 200 returns in the traces have that date).
+            if returned_on < loan.borrowed_on:
+                return error(400, "RETURN_BEFORE_BORROW")
             loan.returned_on = returned_on
             loan.days_late = max((returned_on - loan.due_on).days, 0)
             loan.fee_cents = fee_cents_for(loan.days_late)

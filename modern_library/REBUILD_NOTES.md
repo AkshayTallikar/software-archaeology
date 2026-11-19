@@ -31,15 +31,15 @@ The old system checks, in this order: member exists, `borrowed_on` is a valid da
 - Loan limit before availability: `order-limit` run 238, `409 LOAN_LIMIT` for a book on loan to someone else.
 - Bad date before availability: `order-unavailable-vs-date` runs 241 and 242, `400 INVALID_DATE`.
 The order between fees and the loan limit cannot be tested. A member can only reach the fee block by returning a loan, and that return takes them below the limit, so the two conditions never hold at once and both orders give the same answer.
-The rebuild does not yet match on one pair: it checks availability before the loan limit, and answers `409 BOOK_UNAVAILABLE` where the old system answers `409 LOAN_LIMIT` (`order-limit` run 238).
+The rebuild now matches this pair: it checks the loan limit before availability, so it answers `409 LOAN_LIMIT` as the old system does (`t-001471`, `order-limit` run 238).
 
 **4. Error responses for invalid inputs.**
 - An invalid `borrowed_on` (`2026-02-30`, `2026-13-01`, `yesterday`, empty, `05-01-2026`) returns `400 INVALID_DATE`. Evidence: `order-date-vs-isbn` runs 207 to 221.
 - An invalid `returned_on` (the same values) returns `400 INVALID_DATE`, and the loan stays active. Evidence: `return-invalid-date` runs 244 to 248.
 - An unknown ISBN when borrowing returns `404 BOOK_NOT_FOUND`. Malformed ISBNs do the same: `abc`, empty, 12 or 14 digits, and a hyphenated number that is not in the catalogue. Evidence: `borrow-bad-isbn` runs 250 to 255.
-- A `returned_on` earlier than `borrowed_on` returns `400 RETURN_BEFORE_BORROW`, which the notes did not cover. Evidence: `return-invalid-date` run 249. The rebuild does not yet match: it accepts the return and answers `200`.
+- A `returned_on` earlier than `borrowed_on` returns `400 RETURN_BEFORE_BORROW`, which the notes did not cover. Evidence: `return-invalid-date` run 249. The rebuild now matches this too: it refuses the return with the same error and leaves the loan active (`t-001550`, `t-001551`).
 
-**Also found while answering these.** A loan that has not been returned shows only its own fields in the old system: `returned_on`, `days_late` and `fee` appear once the loan is returned. The rebuild also shows them on active loans, as `null`, `0` and `"0.00"`. The rebuild does not yet match. Evidence: `return-invalid-date` step 3 in every run.
+**Also found while answering these.** A loan that has not been returned shows only its own fields in the old system: `returned_on`, `days_late` and `fee` appear once the loan is returned. The rebuild also shows them on active loans, as `null`, `0` and `"0.00"`. The rebuild now matches this too: an active loan omits those fields, and a returned loan shows them after `status` (`t-001526`, `t-000133`).
 
 **Scenario defects, and one left as it is.** The Thin evidence table flagged the join scenario's literal `{{tier}}`. That was an engine defect: a null `vary` value now leaves its field out of the request (`archaeology/scenarios.py`). `fees-block` step 4 is a cleanup return of the second loan. It is unbound in the 13 runs where the second borrow is refused, and that is correct: the block itself is step 3. Removing the step would leave the second book on loan in the 20 runs where the borrow succeeds, and every later run that borrows it would then see the wrong answer. The engine has no conditional steps, so the same cleanup pattern is used in the new block scenarios, and their unbound cleanup returns are flagged in Thin evidence.
 
