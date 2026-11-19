@@ -1,4 +1,23 @@
-"""Assemble inferred behaviour into a spec, a readable report, and JSON on disk."""
+"""Assemble inferred behaviour into a spec, a readable report, and JSON on disk.
+
+A spec is a JSON object with these top-level keys:
+
+* ``version``, ``trace_count``, ``endpoints``, ``volatile_fields``, ``flows``,
+  ``normalization``: the inferred behaviour, as before.
+* ``boundaries``: findings from input sweeps. Each carries ``evidence``:
+  ``points`` (samples in its sweep or context) and ``changes``, one record per
+  change point with the last sampled ``before`` and first sampled ``after``
+  input and value, ``exact`` (the two inputs are adjacent) and ``unsampled``
+  (inputs between them that were never sent). Findings merged across contexts
+  or steps keep the evidence of their smallest sweep.
+* ``claims``: each result has ``support``, ``matching`` and ``contradicting``
+  trace counts, and the claim's ``request``.
+* ``evidence_gaps``: what the recording never covered, each ``{kind, where,
+  detail, suggestion}``. See :mod:`archaeology.infer.gaps`.
+
+Specs written before evidence existed lack ``evidence``, ``support`` and
+``evidence_gaps``; readers treat those keys as absent.
+"""
 
 from __future__ import annotations
 
@@ -12,7 +31,9 @@ from ..trace import Request, Trace
 from .boundaries import detect_boundaries
 from .catalog import build_catalog, endpoint_key_for
 from .claims import check_claims
+from .boundaries import evidence_note
 from .flows import detect_flows
+from .gaps import detect_evidence_gaps
 from .normalization import detect_normalization
 from .volatility import detect_volatile_fields, volatile_paths
 
@@ -24,15 +45,18 @@ def infer_spec(traces: Sequence[Trace], claims: Sequence[dict[str, Any]] | None 
     """Infer the full behavioural spec from recorded traces and optional claims."""
     traces = list(traces)
     volatile = detect_volatile_fields(traces)
+    boundaries = detect_boundaries(traces)
+    checked = check_claims(claims, traces) if claims else []
     return {
         "version": SPEC_VERSION,
         "trace_count": len(traces),
         "endpoints": build_catalog(traces),
         "volatile_fields": volatile,
-        "boundaries": detect_boundaries(traces),
+        "boundaries": boundaries,
         "flows": detect_flows(traces),
         "normalization": detect_normalization(traces, volatile),
-        "claims": check_claims(claims, traces) if claims else [],
+        "claims": checked,
+        "evidence_gaps": detect_evidence_gaps(traces, boundaries, checked),
     }
 
 
@@ -51,6 +75,31 @@ def _evidence(claim: dict[str, Any]) -> str:
     if claim["observed"]:
         return f"observed status {claim['observed']['status']}"
     return "no matching trace"
+
+
+def _note_suffix(finding: dict[str, Any]) -> str:
+    note = evidence_note(finding)
+    return f" ({note})" if note else ""
+
+
+def _gaps_section(spec: dict[str, Any]) -> list[str]:
+    lines = [
+        "## Thin evidence",
+        "",
+        "_What the recording never covered. Each row names the workload addition that would close it._",
+        "",
+    ]
+    if "evidence_gaps" not in spec:
+        return lines + ["_Not computed for this spec; run `infer` again._", ""]
+    gaps = spec["evidence_gaps"]
+    if not gaps:
+        return lines + ["_None detected._", ""]
+    lines += ["| kind | where | detail | suggested workload addition |", "| --- | --- | --- | --- |"]
+    for gap in gaps:
+        lines.append(
+            f"| {gap['kind']} | {_cell(gap['where'])} | {_cell(gap['detail'])} | {_cell(gap['suggestion'])} |"
+        )
+    return lines + [""]
 
 
 def _flows_section(flows: list[dict[str, Any]]) -> list[str]:
@@ -112,8 +161,15 @@ def render_report(spec: dict[str, Any]) -> str:
     lines += _claims_section(claims)
 
     lines += ["## Hidden behaviour", ""]
-    lines += [f"- {f['description']}" for f in hidden] or ["_None detected._"]
+    if hidden:
+        lines.append(
+            "_Points are the samples in the sweep. A change tag is `exact` when the samples either side "
+            "of it are adjacent, or `±N` when N unsampled inputs could hide the exact edge._"
+        )
+        lines.append("")
+    lines += [f"- {f['description']}{_note_suffix(f)}" for f in hidden] or ["_None detected._"]
     lines.append("")
+    lines += _gaps_section(spec)
 
     lines += _flows_section(spec.get("flows", []))
 
