@@ -257,10 +257,82 @@ def _linear_finding(
     unit = "day" if sweep.axis == DATE else sweep.param
     text = "; ".join(_segment_text(s, unit) for s in segments)
     description = f"{_label(sweep.base, sweep.context)}: {name} is {text}"
+    changes = [numbers[run.first][0] for run in runs[1:]]
     return _finding(
         sweep, "linear", name, description,
         segments=segments, changes_at=[s["from"] for s in segments[1:]],
+        evidence=_evidence(sweep, pts, _step_edges(pts, changes)),
     )
+
+
+# --- evidence ----------------------------------------------------------------
+#
+# Every finding says how well its change points are sampled. For each change,
+# the record holds the last sampled input before it and the first sampled input
+# after it, with their values. ``exact`` means the two inputs are adjacent, so
+# the change is pinned to one input. Otherwise ``unsampled`` counts the inputs
+# between them that were never sent: the change lies within that many inputs of
+# the point it is reported at.
+
+
+def _step_edges(pts: Sequence[tuple[int, Any]], changes: Sequence[int]) -> list[tuple[int, int, int]]:
+    """``(at, before, after)`` positions for each change: the change and its sampled neighbours."""
+    xs = [x for x, _ in pts]
+    previous = {xs[i]: xs[i - 1] for i in range(1, len(xs))}
+    return [(change, previous[change], change) for change in changes]
+
+
+def _clamp_edges(pts: Sequence[tuple[int, Any]], echo_until: Any, axis: str) -> list[tuple[int, int, int]]:
+    """The clamp's start: its last echoing input and the next sampled input after it."""
+    xs = [x for x, _ in pts]
+    end = _ordinal(echo_until, axis)
+    return [(end, end, xs[xs.index(end) + 1])]
+
+
+def _change_evidence(
+    pts: Sequence[tuple[int, Any]], axis: str, edges: Sequence[tuple[int, int, int]]
+) -> list[dict[str, Any]]:
+    """One record per change: the sampled values either side of it, and whether they are adjacent."""
+    values = dict(pts)
+    records = []
+    for at, before, after in edges:
+        width = after - before
+        records.append(
+            {
+                "at": _show(at, axis),
+                "before": {"input": _show(before, axis), "value": values[before]},
+                "after": {"input": _show(after, axis), "value": values[after]},
+                "exact": width == 1,
+                "unsampled": width - 1,
+            }
+        )
+    return records
+
+
+def _evidence(sweep: "_Sweep", pts: Sequence[tuple[int, Any]], edges: Sequence[tuple[int, int, int]]) -> dict[str, Any]:
+    """The evidence of one finding: the sweep's sample count and its change records."""
+    return {"points": len(sweep.points), "changes": _change_evidence(pts, sweep.axis, edges)}
+
+
+def _weaker(a: dict[str, Any], b: dict[str, Any]) -> dict[str, Any]:
+    """The evidence from the smaller sweep: the one that supports a merged finding least."""
+    return b if b["points"] < a["points"] else a
+
+
+def evidence_note(finding: dict[str, Any]) -> str:
+    """A short human note on a finding's evidence, such as ``"8 points; change ±4, exact"``.
+
+    Empty for findings without evidence (normalisation findings have their own counts).
+    """
+    evidence = finding.get("evidence")
+    if not evidence:
+        return ""
+    tags = ["exact" if c["exact"] else f"±{c['unsampled']}" for c in evidence["changes"]]
+    note = f"{evidence['points']} points"
+    if not tags:
+        return note
+    label = "change" if len(tags) == 1 else "changes"
+    return f"{note}; {label} {', '.join(tags)}"
 
 
 # --- findings ----------------------------------------------------------------
@@ -322,6 +394,7 @@ def _sweep_findings(sweep: _Sweep, min_points: int, max_levels: int) -> list[dic
             _finding(
                 sweep, "shape", "shape", f"{label}: response shape is {parts}",
                 segments=shown, changes_at=shown_changes,
+                evidence=_evidence(sweep, shape_points, _step_edges(shape_points, changes)),
             )
         )
 
@@ -347,6 +420,7 @@ def _sweep_findings(sweep: _Sweep, min_points: int, max_levels: int) -> list[dic
                         sweep, "clamp", name,
                         f"{label}: {name} follows the input up to {clamp['echo_until']}, {tail}",
                         echo_until=clamp["echo_until"], then=then,
+                        evidence=_evidence(sweep, pts, _clamp_edges(pts, clamp["echo_until"], axis)),
                     )
                 )
             continue
@@ -361,6 +435,7 @@ def _sweep_findings(sweep: _Sweep, min_points: int, max_levels: int) -> list[dic
                 _finding(
                     sweep, "step", name, f"{label}: {name} is {parts}",
                     segments=shown, changes_at=shown_changes,
+                    evidence=_evidence(sweep, pts, _step_edges(pts, changes)),
                 )
             )
             continue
@@ -453,6 +528,7 @@ def _dedupe(findings: list[dict[str, Any]]) -> list[dict[str, Any]]:
         )
         if signature in kept:
             kept[signature]["contexts"] += 1
+            kept[signature]["evidence"] = _weaker(kept[signature]["evidence"], finding["evidence"])
         else:
             finding["contexts"] = 1
             kept[signature] = finding
@@ -487,6 +563,7 @@ def _merge_steps(findings: list[dict[str, Any]]) -> list[dict[str, Any]]:
             order.append(finding)
         else:
             first["steps"].append(finding["step"])
+            first["evidence"] = _weaker(first["evidence"], finding["evidence"])
     for finding in merged.values():
         steps = sorted(finding["steps"])
         finding["steps"] = steps

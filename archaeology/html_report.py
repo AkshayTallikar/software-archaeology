@@ -19,6 +19,7 @@ from datetime import date
 from typing import Any, Iterable, Iterator, Sequence
 
 from .brief import identifier_formats
+from .infer.boundaries import evidence_note
 from .infer.catalog import endpoint_key, json_object, value_type
 from .trace import Trace
 
@@ -333,6 +334,11 @@ def _hidden_section(spec: dict[str, Any], traces: Sequence[Trace]) -> str:
     out = ["<h2>Hidden behaviour</h2>"]
     if not findings:
         return "".join(out + ['<p class="muted">None detected.</p>'])
+    out.append(
+        '<p class="note">Points are the samples in each sweep. A change tag is <code>exact</code> when the '
+        "samples either side of it are adjacent, or <code>±N</code> when N unsampled inputs could hide the "
+        "exact edge.</p>"
+    )
     for finding in findings:
         kind = finding.get("kind") or "normalization"
         meta = [str(finding.get("endpoint", ""))]
@@ -345,11 +351,33 @@ def _hidden_section(spec: dict[str, Any], traces: Sequence[Trace]) -> str:
             meta.append(f"holds in {finding['contexts']} contexts")
         if "evidence_pairs" in finding:
             meta.append(f"{finding['equivalent_pairs']} of {finding['evidence_pairs']} pairs equivalent")
+        if evidence_note(finding):
+            meta.append(evidence_note(finding))
         out.append('<article class="panel">')
         out.append(f"<h3>{_badge(kind, 'warn')} {_e(finding['description'])}</h3>")
         out.append(f'<p class="meta">{_e(" · ".join(m for m in meta if m))}</p>')
         out.append(_chart(finding, traces))
         out.append("</article>")
+    return "".join(out)
+
+
+def _gaps_section(spec: dict[str, Any]) -> str:
+    out = ["<h2>Thin evidence</h2>"]
+    if "evidence_gaps" not in spec:
+        return "".join(out + ['<p class="muted">Not computed for this spec; run infer again.</p>'])
+    gaps = spec["evidence_gaps"]
+    if not gaps:
+        return "".join(out + ['<p class="muted">None detected.</p>'])
+    rows = [
+        f"<tr><td>{_badge(gap['kind'], 'warn')}</td><td>{_e(gap['where'])}</td>"
+        f"<td>{_e(gap['detail'])}</td><td>{_e(gap['suggestion'])}</td></tr>"
+        for gap in gaps
+    ]
+    out.append('<p class="note">What the recording never covered. Each row names the workload addition that would close it.</p>')
+    out.append(
+        '<div class="table-wrap"><table><thead><tr><th>kind</th><th>where</th><th>detail</th>'
+        "<th>suggested workload addition</th></tr></thead><tbody>" + "".join(rows) + "</tbody></table></div>"
+    )
     return "".join(out)
 
 
@@ -482,6 +510,7 @@ def render_html_report(
         _header(spec, title, replay, probe),
         _claims_section(spec.get("claims", [])),
         _hidden_section(spec, traces),
+        _gaps_section(spec),
         _flows_section(spec, traces),
         _volatile_section(spec),
     ]

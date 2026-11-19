@@ -19,6 +19,7 @@ from datetime import date
 from decimal import Decimal
 from typing import Any, Iterable, Sequence
 
+from .infer.boundaries import evidence_note
 from .infer.catalog import endpoint_key, flatten_json, json_object, value_type
 from .trace import Trace
 
@@ -282,6 +283,33 @@ def _linear_section(boundaries: Sequence[dict[str, Any]]) -> list[str]:
     return lines
 
 
+# --- thin evidence -----------------------------------------------------------
+
+
+def _described(finding: dict[str, Any]) -> str:
+    """A finding's description, with its evidence note when it has one."""
+    note = evidence_note(finding)
+    return f"{finding['description']} ({note})" if note else finding["description"]
+
+
+def _thin_section(spec: dict[str, Any]) -> list[str]:
+    """Where the recording is silent, so a rebuilder knows which edges are guesses."""
+    if "evidence_gaps" not in spec:
+        return []  # a spec from before evidence gaps existed
+    gaps = spec["evidence_gaps"]
+    if not gaps:
+        return ["## Thin evidence", "", "- None detected.", ""]
+    lines = [
+        "## Thin evidence: be careful here",
+        "",
+        "These behaviours rest on thin evidence. Reproduce what the recording shows, but treat the exact "
+        "edge or the untested input as uncertain: do not invent behaviour for it, and ask before changing it.",
+        "",
+    ]
+    lines += [f"- {gap['where']}: {gap['detail']}." for gap in gaps]
+    return lines + [""]
+
+
 # --- brief -------------------------------------------------------------------
 
 
@@ -295,7 +323,7 @@ def generate_brief(
     traces = list(traces)
     boundaries = spec.get("boundaries", [])
     contradicted = [c for c in spec.get("claims", []) if c.get("verdict") == "CONTRADICTED"]
-    hidden = [b["description"] for b in boundaries] + [n["description"] for n in spec.get("normalization", [])]
+    hidden = [_described(b) for b in boundaries] + [n["description"] for n in spec.get("normalization", [])]
 
     lines: list[str] = [
         f"# Rebuild brief: {system_name}",
@@ -380,6 +408,7 @@ def generate_brief(
     linear = _linear_section(boundaries)
     if linear:
         lines += ["## Rule tables", ""] + linear
+    lines += _thin_section(spec)
 
     if contradicted:
         lines += ["## Where the old documentation is wrong", ""]
