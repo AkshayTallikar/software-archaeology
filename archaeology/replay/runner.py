@@ -158,6 +158,7 @@ def to_dict(report: ReplayReport) -> dict[str, Any]:
         "total": report.total,
         "matched": report.matched,
         "equivalence": report.equivalence,
+        "remapped": report.remapped,
         "mismatches": [
             {
                 "trace_id": r.trace_id,

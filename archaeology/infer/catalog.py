@@ -16,6 +16,7 @@ _DIGITS = re.compile(r"[0-9]+")
 # ``facade`` and ``deadbeef`` stay literal path words.
 _OPAQUE_ID = re.compile(r"(?:[A-Za-z]{1,4}[-_])?[0-9a-fA-F]{6,}")
 _HAS_DIGIT = re.compile(r"[0-9]")
+_PREFIXED = re.compile(r"[A-Za-z]{1,4}[-_][0-9a-fA-F]{6,}")
 _SEPARATED_DIGITS = re.compile(r"[0-9]+(?:-[0-9]+)*-(?:[0-9]+|[Xx])")
 _UUID = re.compile(r"[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}")
 _ISO_DATE = re.compile(r"[0-9]{4}-[0-9]{2}-[0-9]{2}")
@@ -35,7 +36,11 @@ def _is_opaque_id(segment: str) -> bool:
         return True
     if _SEPARATED_DIGITS.fullmatch(segment) and sum(c.isdigit() for c in segment) >= 6:
         return True
-    return _OPAQUE_ID.fullmatch(segment) is not None and _HAS_DIGIT.search(segment) is not None
+    if _OPAQUE_ID.fullmatch(segment) is None:
+        return False
+    # A bare hex word (deadbeef, facade) is literal unless it has a digit; a
+    # prefixed token (L-acdffe, m_beadfeed) is generated either way.
+    return _HAS_DIGIT.search(segment) is not None or _PREFIXED.fullmatch(segment) is not None
 
 
 def path_template(path: str) -> str:
