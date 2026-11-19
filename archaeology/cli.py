@@ -7,6 +7,7 @@ import importlib
 import json
 import sys
 import time
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Sequence
 
@@ -201,26 +202,63 @@ def cmd_probe(args: argparse.Namespace) -> int:
                       json_path=args.json)
 
 
+@dataclass(frozen=True)
+class DemoSystem:
+    """A bundled legacy system and its rebuild, runnable end to end by ``demo``."""
+
+    title: str
+    reference: str
+    workload: str
+    claims: str
+    rebuild: str
+    stateful: bool
+
+
+DEMO_SYSTEMS: dict[str, DemoSystem] = {
+    "billing": DemoSystem(
+        title="ACME Billing",
+        reference="legacy_app.billing:make_app",
+        workload="legacy_app/workload.json",
+        claims="legacy_app/claims.json",
+        rebuild="modern_app.main:make_app",
+        stateful=False,
+    ),
+    "library": DemoSystem(
+        title="Pinecrest Library",
+        reference="cmd:node legacy_library/server.js",
+        workload="legacy_library/workload.json",
+        claims="legacy_library/claims.json",
+        rebuild="modern_library.main:make_app",
+        stateful=True,
+    ),
+}
+
+
 def cmd_demo(args: argparse.Namespace) -> int:
+    system = DEMO_SYSTEMS[args.system]
+    target = args.target or system.rebuild
     out = Path(args.out)
     out.mkdir(parents=True, exist_ok=True)
     traces, spec, report, brief = (out / n for n in ("traces.jsonl", "spec.json", "report.md", "brief.md"))
-    print("== 1. Excavate: recording the legacy system ==")
-    cmd_record(argparse.Namespace(app="legacy_app.billing:make_app", target=None,
-                                  workload="legacy_app/workload.json", out=str(traces)))
+    print(f"== 1. Excavate: recording {system.title} ({system.reference}) ==")
+    cmd_record(argparse.Namespace(app=None, target=system.reference, workload=system.workload, out=str(traces)))
     print("\n== 2. Interpret: inferring its true behaviour ==")
-    cmd_infer(argparse.Namespace(traces=str(traces), claims="legacy_app/claims.json", spec=str(spec), report=str(report)))
+    cmd_infer(argparse.Namespace(traces=str(traces), claims=system.claims, spec=str(spec), report=str(report)))
     print("\n== 3. Rebuild: writing the brief for coding agents ==")
-    cmd_brief(argparse.Namespace(spec=str(spec), traces=str(traces), out=str(brief), name="ACME Billing"))
-    print(f"\n== 4. Prove: replaying recorded traffic against {args.target} ==")
-    replay_status = _run_replay(str(traces), args.target, str(spec), 1.0,
+    cmd_brief(argparse.Namespace(spec=str(spec), traces=str(traces), out=str(brief), name=system.title))
+    print(f"\n== 4. Prove: replaying recorded traffic against {target} ==")
+    replay_status = _run_replay(str(traces), target, str(spec), 1.0,
                                 str(out / "equivalence.md"), str(out / "equivalence.json"))
-    print(f"\n== 5. Probe: {args.probe_count} fresh requests the recording never contained ==")
-    probe_status = _run_probe("legacy_app.billing:make_app", args.target, str(spec), str(traces),
-                              args.probe_count, 0, str(out / "probe.md"), json_path=str(out / "probe.json"))
+    scenarios = args.scenario_count if system.stateful else 0
+    extra = f" and {scenarios} fresh scenario runs" if scenarios else ""
+    print(f"\n== 5. Probe: {args.probe_count} fresh requests{extra} the recording never contained ==")
+    probe_status = _run_probe(system.reference, target, str(spec), str(traces),
+                              args.probe_count, 0, str(out / "probe.md"),
+                              workload_path=system.workload if scenarios else None,
+                              scenario_count=scenarios, json_path=str(out / "probe.json"))
     print("\n== 6. Report: writing the evidence report ==")
     cmd_report(argparse.Namespace(spec=str(spec), traces=str(traces), replay=str(out / "equivalence.json"),
-                                  probe=str(out / "probe.json"), title="ACME Billing",
+                                  probe=str(out / "probe.json"), title=system.title,
                                   out=str(out / "report.html")))
     return replay_status or probe_status
 
@@ -293,10 +331,14 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--out", default="report.html")
     p.set_defaults(func=cmd_report)
 
-    p = sub.add_parser("demo", help="run the whole pipeline on the bundled ACME Billing system")
+    p = sub.add_parser("demo", help="run the whole pipeline on a bundled legacy system and its rebuild")
+    p.add_argument("--system", choices=sorted(DEMO_SYSTEMS), default="billing",
+                   help="billing (Python WSGI) or library (Node.js, stateful; needs node)")
     p.add_argument("--out", default="out")
-    p.add_argument("--target", default="modern_app.main:make_app")
+    p.add_argument("--target", help="the rebuild to prove (default: the bundled rebuild)")
     p.add_argument("--probe-count", type=int, default=3000)
+    p.add_argument("--scenario-count", type=int, default=300,
+                   help="fresh scenario runs to probe on a stateful system")
     p.set_defaults(func=cmd_demo)
     return parser
 
