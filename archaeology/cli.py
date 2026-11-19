@@ -138,7 +138,8 @@ def cmd_infer(args: argparse.Namespace) -> int:
     hidden = len(spec["boundaries"]) + len(spec["normalization"])
     print(
         f"Inferred {len(spec['endpoints'])} endpoints and {hidden} hidden behaviours from {len(traces)} traces; "
-        f"{contradicted} documented claims contradicted. Spec: {args.spec}  Report: {args.report}"
+        f"{contradicted} documented claims contradicted; {len(spec['evidence_gaps'])} evidence gaps. "
+        f"Spec: {args.spec}  Report: {args.report}"
     )
     return 0
 

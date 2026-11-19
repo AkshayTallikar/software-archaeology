@@ -268,6 +268,45 @@ budget is the acceptance criterion: at most a fifth for billing and at most two
 fifths for the library. The method can miss two changes that cancel at every
 probe point, which a grid of nine points cannot rule out in general.
 
+### 7.2 Confidence and thin evidence
+
+A finding's sample count says how much the recording supports it. Every
+boundary finding carries `evidence`: the number of samples in its sweep, and for
+each change point the last sampled input and value before it and the first after
+it. A change is `exact` when those two inputs are adjacent. Otherwise the reports
+tag it `±N`, where N is the number of inputs never sent that could hide the exact
+edge. Findings merged across contexts keep the evidence of their smallest sweep.
+
+Each claim verdict carries `support`: how many traces with the claim's request
+agree with it (`matching`) and how many contradict it (`contradicting`). The
+verdict still rests on the first matching trace.
+
+The spec's `evidence_gaps` lists what the recording never covered. Each gap has
+a `kind`, a `where`, a `detail` and a `suggestion`: one line of workload to add or
+fix.
+
+* `inexact_change`: a change point is bracketed by samples that are not adjacent.
+  A bracket shared by several contexts is reported once.
+* `few_values`: a request parameter or scenario variable has exactly two distinct
+  values. A variable with one value is a fixed base input that no sweep meant to
+  vary, so it is not reported. Three or more values count as varied.
+* `single_status`: an endpoint with at least two requests only ever returned one
+  HTTP status. A single request cannot show a change, so it is not reported.
+* `failed_capture`: a scenario step sent a request with an unbound
+  `{{placeholder}}`. Either a varied value was null and the literal placeholder
+  went out, or an earlier step never captured the value. These requests are left
+  out of `single_status`.
+* `unobserved_claim`: a documented claim that no recorded exchange tests.
+
+The report, the rebuild brief and the HTML page all show these. The brief lists
+them under a "be careful here" heading, so a coding agent knows which edges are
+guesses. Specs written before this change lack the new keys, and the renderers
+say so instead of reporting none.
+
+On the bundled systems the gaps include a workload defect rather than a gap in
+behaviour: the Pinecrest `join` scenario's null `tier` variant sends the literal
+`{{tier}}` instead of omitting the field.
+
 ## 8. Later milestones
 
 * Targeted probing: generate requests to test UNOBSERVED claims. Boundary
