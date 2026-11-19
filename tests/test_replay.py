@@ -462,6 +462,7 @@ def test_to_dict_summary():
         "total": 2,
         "matched": 1,
         "equivalence": 0.5,
+        "remapped": 0,
         "mismatches": [
             {
                 "trace_id": "t-2",

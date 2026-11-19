@@ -1,4 +1,4 @@
-"""Command line interface: ``archaeology record | proxy | infer | brief | replay | probe | demo``."""
+"""Command line interface: ``archaeology record | proxy | infer | brief | replay | probe | report | demo``."""
 
 from __future__ import annotations
 
@@ -11,6 +11,7 @@ from pathlib import Path
 from typing import Any, Sequence
 
 from .brief import generate_brief
+from .html_report import render_html_report
 from .infer.claims import load_claims
 from .infer.spec import infer_spec, load_spec, render_report, save_spec, volatile_paths_for
 from .probe import generate_requests, merge_reports, probe, probe_scenarios
@@ -122,6 +123,18 @@ def cmd_brief(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_report(args: argparse.Namespace) -> int:
+    replay_summary = json.loads(Path(args.replay).read_text(encoding="utf-8")) if args.replay else None
+    probe_summary = json.loads(Path(args.probe).read_text(encoding="utf-8")) if args.probe else None
+    page = render_html_report(
+        load_spec(args.spec), read_traces(args.traces),
+        title=args.title, replay=replay_summary, probe=probe_summary,
+    )
+    Path(args.out).write_text(page, encoding="utf-8")
+    print(f"Wrote evidence report to {args.out} ({len(page.encode('utf-8')) // 1024} KB)")
+    return 0
+
+
 def _run_replay(traces_path: str, target_spec: str, spec_path: str | None, threshold: float,
                 report_path: str | None, json_path: str | None) -> int:
     traces = read_traces(traces_path)
@@ -204,7 +217,11 @@ def cmd_demo(args: argparse.Namespace) -> int:
                                 str(out / "equivalence.md"), str(out / "equivalence.json"))
     print(f"\n== 5. Probe: {args.probe_count} fresh requests the recording never contained ==")
     probe_status = _run_probe("legacy_app.billing:make_app", args.target, str(spec), str(traces),
-                              args.probe_count, 0, str(out / "probe.md"))
+                              args.probe_count, 0, str(out / "probe.md"), json_path=str(out / "probe.json"))
+    print("\n== 6. Report: writing the evidence report ==")
+    cmd_report(argparse.Namespace(spec=str(spec), traces=str(traces), replay=str(out / "equivalence.json"),
+                                  probe=str(out / "probe.json"), title="ACME Billing",
+                                  out=str(out / "report.html")))
     return replay_status or probe_status
 
 
@@ -266,6 +283,15 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--report", help="write the markdown report here")
     p.add_argument("--json", help="write the JSON report here")
     p.set_defaults(func=cmd_probe)
+
+    p = sub.add_parser("report", help="write a self-contained HTML evidence report")
+    p.add_argument("--spec", required=True)
+    p.add_argument("--traces", required=True)
+    p.add_argument("--replay", help="replay JSON (archaeology replay --json) to show")
+    p.add_argument("--probe", help="probe JSON (archaeology probe --json) to show")
+    p.add_argument("--title", default="Evidence report")
+    p.add_argument("--out", default="report.html")
+    p.set_defaults(func=cmd_report)
 
     p = sub.add_parser("demo", help="run the whole pipeline on the bundled ACME Billing system")
     p.add_argument("--out", default="out")

@@ -77,6 +77,12 @@ def test_path_template_hyphenated_catalogue_numbers() -> None:
     assert path_template("/sign-in") == "/sign-in"
 
 
+def test_path_template_prefixed_hex_ids_without_digits() -> None:
+    assert path_template("/loans/L-acdffe/return") == "/loans/{id}/return"
+    assert path_template("/members/m_beadfeed") == "/members/{id}"
+    assert path_template("/deadbeef") == "/deadbeef"
+
+
 def test_value_and_json_types() -> None:
     assert [value_type(v) for v in ["", "42", "-3", "1.5", "1e3", "abc"]] == [
         "empty", "int", "int", "float", "float", "str",
