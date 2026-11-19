@@ -163,3 +163,50 @@ def test_cmd_spec_builds_a_fresh_process_each_time():
 def test_process_target_reports_a_command_that_never_listens():
     with pytest.raises(RuntimeError, match="could not start"):
         ProcessTarget([sys.executable, "-c", "import sys; sys.exit(3)"], timeout=2)
+
+
+def test_a_null_varied_value_omits_its_form_and_query_fields():
+    template = {"name": "n", "vary": {"coupon": {"values": [None, "SAVE10"]}}, "steps": [
+        {"method": "POST", "path": "/invoice", "form": {"sku": "W", "coupon": "{{coupon}}"}},
+        {"method": "GET", "path": "/quote", "query": {"ref": "{{coupon}}", "sku": "W"}},
+    ]}
+    runs = expand_scenarios({"scenarios": [template]})
+    omitted, given = runs[0], runs[1]
+    assert omitted.bindings == {} and omitted.omitted == frozenset({"coupon"})
+    assert given.bindings == {"coupon": "SAVE10"} and given.omitted == frozenset()
+
+    target = WsgiTarget(make_app())
+    seen = []
+    run_scenario(omitted, lambda request: (seen.append(request), target(request))[1])
+    assert "coupon" not in seen[0].params and "coupon" not in seen[1].params
+    assert seen[1].params == {"sku": "W"}
+    assert "{{" not in seen[0].body and "{{" not in seen[1].query_string
+
+    seen.clear()
+    run_scenario(given, lambda request: (seen.append(request), target(request))[1])
+    assert seen[0].params["coupon"] == "SAVE10" and seen[1].params["ref"] == "SAVE10"
+
+
+def test_an_omitted_value_drops_only_an_exact_placeholder():
+    step = {"method": "POST", "path": "/x", "form": {"exact": "{{tier}}", "inside": "a{{tier}}", "other": "{{x}}"}}
+    request = render_step(step, {}, frozenset({"tier"}))
+    assert request.params == {"inside": "a{{tier}}", "other": "{{x}}"}
+
+
+def test_an_unbound_captured_variable_is_still_sent_literally():
+    # "member" is captured, not varied, so a run that never captured it keeps the literal placeholder
+    step = {"method": "GET", "path": "/members/{{member}}", "query": {"q": "{{member}}"}}
+    request = render_step(step, {}, frozenset({"tier"}))
+    assert request.path == "/members/{{member}}"
+    assert request.params == {"q": "{{member}}"}
+
+
+def test_sampled_null_values_are_omitted_too():
+    workload = {"scenarios": [{"name": "s", "vary": {"tier": {"values": [None]}}, "steps": [
+        {"method": "POST", "path": "/members", "form": {"name": "Ada", "tier": "{{tier}}"}},
+    ]}]}
+    [run] = sample_scenarios(workload, 1, seed=0)
+    assert run.omitted == frozenset({"tier"}) and run.bindings == {}
+    seen = []
+    run_scenario(run, lambda request: seen.append(request) or WsgiTarget(make_app())(request))
+    assert seen[0].params == {"name": "Ada"}

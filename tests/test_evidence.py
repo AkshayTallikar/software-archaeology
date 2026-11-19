@@ -399,9 +399,11 @@ def test_library_recording_flags_its_failed_captures_and_fixed_tiers(tmp_path: P
                  "--out", str(traces_path)]) == 0
     spec = infer_spec(read_traces(traces_path), json.loads((ROOT / system.claims).read_text(encoding="utf-8")))
     failed = [g for g in spec["evidence_gaps"] if g["kind"] == "failed_capture"]
-    assert {g["where"] for g in failed} >= {
-        "scenario join step 0 (POST /members)",
-        "scenario fees-block step 4 (POST /loans/{{loan2}}/return)",
-    }
+    wheres = {g["where"] for g in failed}
+    # a null tier is omitted, so join step 0 no longer sends the literal {{tier}}
+    assert "scenario join step 0 (POST /members)" not in wheres
+    assert not any("{{tier}}" in g["where"] + g["detail"] for g in failed)
+    # fees-block step 4 is the cleanup return of the second loan, unbound in the runs where that borrow is refused
+    assert "scenario fees-block step 4 (POST /loans/{{loan2}}/return)" in wheres
     assert any("tier" in g["where"] for g in gaps_of("few_values", spec["evidence_gaps"]))
     assert any(g["where"] == "GET /books" for g in gaps_of("single_status", spec["evidence_gaps"]))
