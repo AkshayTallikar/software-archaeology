@@ -1,4 +1,4 @@
-"""Command line interface: ``archaeology record | proxy | infer | brief | replay | probe | report | demo``."""
+"""Command line interface: ``archaeology record | explore | proxy | infer | brief | replay | probe | report | demo``."""
 
 from __future__ import annotations
 
@@ -12,6 +12,7 @@ from pathlib import Path
 from typing import Any, Sequence
 
 from .brief import generate_brief
+from .explore import explore_target, render_log
 from .html_report import render_html_report
 from .infer.claims import load_claims
 from .infer.spec import infer_spec, load_spec, render_report, save_spec, volatile_paths_for
@@ -21,7 +22,8 @@ from .probe import to_dict as probe_to_dict
 from .recorder import JsonlSink, RecordingProxy, load_workload, record, record_target
 from .replay import load_target, render_markdown, replay, to_dict
 from .scenarios import sample_scenarios
-from .trace import read_traces
+from .trace import read_traces, write_traces
+from .wsgi import call_wsgi
 
 
 def _import(spec: str) -> Any:
@@ -53,6 +55,30 @@ def cmd_record(args: argparse.Namespace) -> int:
     else:
         count = record(_resolve_wsgi_app(args.app), workload, args.out)
     print(f"Recorded {count} exchanges to {args.out}")
+    return 0
+
+
+def cmd_explore(args: argparse.Namespace) -> int:
+    """Record a workload's behaviour with adaptive sampling, writing traces and an exploration log."""
+    workload = load_workload(args.workload)
+    if args.target:
+        target = load_target(args.target)
+    else:
+        app = _resolve_wsgi_app(args.app)
+        target = lambda request: call_wsgi(app, request)  # noqa: E731
+    try:
+        result = explore_target(target, workload)
+    finally:
+        close = getattr(target, "close", None)
+        if callable(close):
+            close()
+    write_traces(args.out, result.traces)
+    Path(args.log).write_text(render_log(result), encoding="utf-8")
+    ratio = result.full / len(result.traces) if result.traces else float("inf")
+    print(
+        f"Explored {len(result.traces)} exchanges (full recording: {result.full}, {ratio:.2f}x fewer) "
+        f"to {args.out}  Log: {args.log}"
+    )
     return 0
 
 
@@ -277,6 +303,18 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--workload", required=True)
     p.add_argument("--out", default="traces.jsonl")
     p.set_defaults(func=cmd_record)
+
+    p = sub.add_parser("explore", help="record a workload with adaptive sampling along its ranges")
+    source = p.add_mutually_exclusive_group(required=True)
+    source.add_argument("--app", help="module:attr of an in-process WSGI app or make_* factory")
+    source.add_argument(
+        "--target",
+        help="any target spec: module:attr (WSGI or ASGI), cmd:<command> or an http(s) base URL",
+    )
+    p.add_argument("--workload", required=True)
+    p.add_argument("--out", default="traces.jsonl")
+    p.add_argument("--log", default="explore.md", help="where to write the exploration log")
+    p.set_defaults(func=cmd_explore)
 
     p = sub.add_parser("proxy", help="record the real traffic of a live system passing through a proxy")
     p.add_argument("--upstream", required=True, help="base URL of the live system")

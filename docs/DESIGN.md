@@ -244,10 +244,34 @@ rule exactly. A mutation test shows that replay fails when any of six
 business rules is changed by one step. CI runs both systems end to end and
 publishes the evidence reports.
 
-## 7. Later milestones
+## 7. Milestone 3
 
-* Targeted probing: generate requests to test UNOBSERVED claims and to refine
-  boundaries with binary search instead of sweeps.
+### 7.1 Explore (`archaeology/explore.py`)
+
+`archaeology explore` records a workload with fewer requests than `record`. An
+explicit request, or a sweep or scenario whose `vary` holds only value lists, is
+sent exhaustively. A sweep or scenario that varies an integer `range` or a
+`date_range` is explored along that axis, once in each context of its other
+keys. The axis is sampled at nine evenly spaced points. A coarse interval is
+clean when its far endpoint continues the line of the sample before it and its
+midpoint lies on the chord. Every other interval is halved: a probe that fits
+the left line lies before the change, one that fits the right line lies after
+it, and otherwise the interval is bisected. Each change is then a pair of
+adjacent grid values, the same pair the full sweep compares, so
+`detect_boundaries` gives the same findings on either recording. Fields that
+differ between identical requests (ids, timestamps) are found by repeating the
+first probe and are then ignored. The tests in `tests/test_explore.py` check
+the findings of both bundled systems against their full recordings. On billing,
+`explore` sends 484 requests against 3,226 for the full recording (6.7x fewer).
+On the Node.js library it sends 412 against 1,115 (2.7x fewer). The request
+budget is the acceptance criterion: at most a fifth for billing and at most two
+fifths for the library. The method can miss two changes that cancel at every
+probe point, which a grid of nine points cannot rule out in general.
+
+## 8. Later milestones
+
+* Targeted probing: generate requests to test UNOBSERVED claims. Boundary
+  refinement by binary search now lives in `explore`.
 * Agent loop: an orchestrator that hands the brief to coding agents, runs
   replay, and feeds diffs back until equivalence.
 * Concurrency: record interleaved clients and check the rebuild under the
