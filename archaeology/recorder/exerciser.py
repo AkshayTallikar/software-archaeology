@@ -1,8 +1,15 @@
 """Drive a WSGI app with a declarative workload so its behaviour gets recorded.
 
-A workload is a JSON object with two optional keys: ``requests`` (explicit
-requests, sent in order) and ``sweeps`` (parameter sweeps expanded into one
-request per combination of varied values).
+A workload is a JSON object with three optional keys: ``requests`` (explicit
+requests, sent in order), ``sweeps`` (parameter sweeps expanded into one
+request per combination of varied values) and ``scenarios`` (multi-step runs
+whose later steps use values captured from earlier responses; see
+:mod:`archaeology.scenarios`). They are sent in that order.
+
+The exerciser drives any target: a ``Request -> Response`` callable such as
+:class:`~archaeology.replay.WsgiTarget`, ``AsgiTarget``, ``HttpTarget`` or
+``ProcessTarget``. :func:`exercise` and :func:`record` keep the original
+in-process WSGI interface.
 """
 
 from __future__ import annotations
@@ -14,9 +21,13 @@ from pathlib import Path
 from typing import Any, Callable
 from urllib.parse import urlencode
 
-from ..trace import FORM_CONTENT_TYPE, Request
+from datetime import timezone
+
+from ..trace import FORM_CONTENT_TYPE, Request, Response, Trace
 from ..wsgi import call_wsgi
-from .middleware import JsonlSink, RecordingMiddleware
+from .middleware import JsonlSink
+
+Target = Callable[[Request], Response]
 
 
 def load_workload(path: str | Path) -> dict[str, Any]:
@@ -46,25 +57,11 @@ def request_from_spec(spec: dict[str, Any]) -> Request:
     )
 
 
-def _range_values(spec: dict[str, Any]) -> list[str]:
-    """Expand ``{"range": [start, stop_inclusive, step]}`` into string values."""
-    start, stop, step = spec["range"]
-    if step > 0:
-        stop_excl = stop + 1
-    elif step < 0:
-        stop_excl = stop - 1
-    else:
-        raise ValueError("range step must not be zero")
-    return [str(i) for i in range(start, stop_excl, step)]
-
-
 def _vary_values(name: str, spec: dict[str, Any]) -> list[str | None]:
     """Expand one vary entry into the values to send (``None`` means omit)."""
-    if "range" in spec:
-        return _range_values(spec)
-    if "values" in spec:
-        return [None if v is None else str(v) for v in spec["values"]]
-    raise ValueError(f"vary parameter {name!r} needs 'range' or 'values'")
+    from ..scenarios import vary_values
+
+    return vary_values(name, spec)
 
 
 def expand_sweep(sweep: dict[str, Any]) -> list[Request]:
@@ -104,21 +101,53 @@ def expand_workload(workload: dict[str, Any]) -> list[Request]:
     return requests
 
 
+def exercise_target(
+    target: Target,
+    workload: dict[str, Any],
+    sink: Callable[[Trace], None],
+    clock: Callable[[], datetime] | None = None,
+    id_prefix: str = "t-",
+) -> int:
+    """Send every workload request and scenario step to ``target`` and record each exchange.
+
+    Returns the number of exchanges recorded.
+    """
+    from ..scenarios import expand_scenarios, run_scenario
+
+    now = clock or (lambda: datetime.now(timezone.utc))
+    count = 0
+
+    def emit(request: Request, response: Response, scenario: dict[str, Any] | None) -> None:
+        nonlocal count
+        count += 1
+        sink(Trace(f"{id_prefix}{count:06d}", now().isoformat(), request, response, scenario))
+
+    for request in expand_workload(workload):
+        emit(request, target(request), None)
+    for run in expand_scenarios(workload):
+        run_scenario(run, target, on_exchange=emit)
+    return count
+
+
+def record_target(
+    target: Target,
+    workload: dict[str, Any],
+    out_path: str | Path,
+    clock: Callable[[], datetime] | None = None,
+) -> int:
+    """Exercise ``target`` and write the traces to a JSON Lines file. Returns the count."""
+    with JsonlSink(out_path) as sink:
+        return exercise_target(target, workload, sink, clock)
+
+
 def exercise(
     app: Callable[..., Any],
     workload: dict[str, Any],
     sink: Callable[..., None],
     clock: Callable[[], datetime] | None = None,
 ) -> int:
-    """Send every workload request through a recording wrapper of ``app``.
-
-    Returns the number of requests sent.
-    """
-    wrapped = RecordingMiddleware(app, sink, clock)
-    requests = expand_workload(workload)
-    for request in requests:
-        call_wsgi(wrapped, request)
-    return len(requests)
+    """Exercise an in-process WSGI ``app``. Returns the number of exchanges recorded."""
+    return exercise_target(lambda request: call_wsgi(app, request), workload, sink, clock)
 
 
 def record(
@@ -127,6 +156,6 @@ def record(
     out_path: str | Path,
     clock: Callable[[], datetime] | None = None,
 ) -> int:
-    """Exercise ``app`` and write the traces to a JSON Lines file. Returns the count."""
+    """Exercise a WSGI ``app`` and write the traces to a JSON Lines file. Returns the count."""
     with JsonlSink(out_path) as sink:
         return exercise(app, workload, sink, clock)

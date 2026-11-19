@@ -127,7 +127,7 @@ planted behaviours are listed in `legacy_app/ANSWER_KEY.md` so the engine's
 findings can be scored. The rebuild agents never see that file or the legacy
 source.
 
-## 5. Milestone 1 (this milestone)
+## 5. Milestone 1 (done)
 
 Goal: the full excavate, interpret, rebuild, prove loop works end to end on
 ACME Billing, in CI.
@@ -141,12 +141,101 @@ ACME Billing, in CI.
 7. Modern FastAPI rebuild built only from the brief, passing replay at 100%.
 8. README with architecture, how to run and demo output.
 
-## 6. Later milestones
+## 6. Milestone 2: stateful systems in any language
 
-* Recording reverse proxy for live HTTP systems in any language.
+Milestone 1 proved the loop on one stateless Python service whose ids were
+the only thing that changed between runs. Real legacy systems are neither:
+they are written in whatever was fashionable in 2009, a client creates a
+record and then uses the identifier the server handed back, and the business
+rules are piecewise formulas, not lookup tables. Milestone 2 makes every stage
+handle that, and proves it on a second, harder legacy system.
+
+### 6.1 Pinecrest Library: the second legacy system
+
+`legacy_library/` is a lending-library service written in Node.js with no
+dependencies. Clients create members, browse a paged catalogue, borrow books
+and return them late. Its identifiers are random tokens, its rules depend on
+state (how many books a member already has), dates and money, and its
+documentation (`legacy_library/LEGACY_API.md`) is wrong in realistic ways.
+Its planted behaviours are listed in `legacy_library/ANSWER_KEY.md`; the
+engine has to find them from traffic alone, through HTTP, without reading the
+JavaScript.
+
+### 6.2 Scenarios: recording multi-step behaviour
+
+A workload gains a third section, `scenarios`. A scenario is an ordered list
+of steps; a step can `capture` a value from its response by a dotted JSON
+path and later steps use it as `{{name}}` in their path, query or form. A
+scenario may `vary` parameters (`values`, `range`, or `date_range` for
+ISO dates) and is then run once per combination, each run with its own
+captures. Every trace a scenario produces is tagged
+`{"name", "run", "step"}`, so later stages know which exchanges belong
+together and in what order. Stateless traces carry `scenario: null`.
+
+### 6.3 Excavating any system
+
+* **Process targets**: `cmd:<command>` starts a system as a child process on
+  a free port (passed in the `PORT` environment variable), waits until it
+  accepts connections, and talks to it over HTTP. Each target is a fresh
+  process, so every replay or probe starts from empty state.
+* **Recording over HTTP**: the exerciser drives any target (WSGI, ASGI,
+  process or URL), not only in-process WSGI apps.
+* **Recording reverse proxy**: `archaeology proxy` sits in front of a live
+  system and records the real traffic that passes through it.
+
+### 6.4 Inference for stateful systems
+
+* **Opaque identifiers**: path segments that look like generated ids
+  (`m_3fa9c2d1`, `L-04b7e2`, UUIDs) are templated like numeric ones, so
+  `GET /members/m_3fa9c2d1` and `GET /members/m_77c0e1aa` are one endpoint.
+* **Identifier flows**: which response field feeds which later request
+  (`POST /members -> member_id -> POST /loans form member_id`), learned from
+  the scenario traces. The brief tells the rebuild how clients chain calls.
+* **Dates as numbers**: ISO date parameters are swept and analysed as day
+  numbers, so a boundary can be "three days after the due date".
+* **Piecewise-linear rules**: a numeric output that follows a formula in
+  segments (free during a grace period, then a jump, then a fixed amount per
+  day, then a cap) is described segment by segment with exact decimal slopes.
+* **More normalisation**: inputs whose hyphens are ignored.
+* **Claims about steps**: a documented claim can name a scenario step
+  ("the sixth loan is refused") instead of a fixed request.
+
+### 6.5 Proving a stateful rebuild
+
+Recorded identifiers cannot be replayed literally: the rebuild hands out its
+own. Replay therefore keeps an **identity map**. Whenever a response field
+known to be volatile differs between the recording and the rebuild, the pair
+is remembered; every later request is rewritten through the map before it is
+sent, and every later expected response is rewritten before it is compared.
+A rebuild passes when the rewritten exchanges match exactly. The differential
+probe gains a scenario mode: it samples fresh scenario runs (any day in a date
+range, any integer in a range) and runs each one against fresh copies of
+both systems, mapping identifiers the same way.
+
+### 6.6 Evidence report
+
+`archaeology report` renders one self-contained HTML page per system:
+documentation versus reality, every hidden behaviour with a chart of the
+evidence, identifier flows, and the replay and probe verdicts. CI publishes
+the reports as a build artifact.
+
+### 6.7 Issues
+
+1. Milestone 2 contract: scenario traces, scenario workloads, process targets.
+2. Recording reverse proxy and `record --target`.
+3. Pinecrest Library: the second legacy system, in Node.js.
+4. Inference for stateful systems (6.4).
+5. Stateful replay and scenario probing with an identity map (6.5).
+6. Brief and HTML evidence report for multi-step systems.
+7. Two-system demo and CI.
+8. Rebuild Pinecrest Library in FastAPI from the brief alone.
+9. README and results for milestone 2.
+
+## 7. Later milestones
+
 * Targeted probing: generate requests to test UNOBSERVED claims and to refine
   boundaries with binary search instead of sweeps.
-* Stateful behaviour: infer sequences (create then read) and replay them in
-  order with state reset.
 * Agent loop: an orchestrator that hands the brief to coding agents, runs
   replay, and feeds diffs back until equivalence.
+* Concurrency: record interleaved clients and check the rebuild under the
+  same interleavings.
