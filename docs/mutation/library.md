@@ -1,20 +1,20 @@
 # Mutation report: modern_library.main
 
-**Mutation score: 78.1%** (killed 82, survived 23, errors 0)
+**Mutation score: 83.8%** (killed 88, survived 17, errors 0)
 
 Mutants generated: 105; evaluated: 105. Errors are excluded from the score.
 
-Baseline: the unmutated rebuild replays 1564 / 1564 exchanges equivalent.
+Baseline: the unmutated rebuild replays 1821 / 1821 exchanges equivalent.
 
-Wall time: 256.6 s with 4 jobs, timeout 120 s per mutant. Rebuild: `modern_library/main.py`. Traces: `out/mutate/library-traces.jsonl`. Spec: `out/mutate/library-spec.json`.
+Wall time: 344.9 s with 4 jobs, timeout 120 s per mutant. Rebuild: `modern_library/main.py`. Traces: `out/mutate/library-traces.jsonl`. Spec: `out/mutate/library-spec.json`.
 
 ## By operator
 
 | Operator | Killed | Survived | Errors | Score |
 | --- | --- | --- | --- | --- |
-| int-literal | 69 | 21 | 0 | 76.7% |
+| int-literal | 74 | 16 | 0 | 82.2% |
 | comparison | 8 | 0 | 0 | 100.0% |
-| boolean | 3 | 1 | 0 | 75.0% |
+| boolean | 4 | 0 | 0 | 100.0% |
 | guard-order | 2 | 1 | 0 | 66.7% |
 
 ## Surviving mutants
@@ -35,18 +35,6 @@ Grouped by the function they change.
 | 229 | `L229:C21:int-literal-1` | int-literal | `0` | `-1` |
 | 230 | `L230:C21:int-literal+1` | int-literal | `0` | `1` |
 | 230 | `L230:C21:int-literal-1` | int-literal | `0` | `-1` |
-
-### `parse_iso_date`
-
-| Line | Mutant | Operator | Original | Mutated |
-| --- | --- | --- | --- | --- |
-| 177 | `L177:C7:boolean:Or->And` | boolean | `raw is None or not _ISO_DATE.fullmatch(raw.strip())` | `raw is None and (not _ISO_DATE.fullmatch(raw.strip()))` |
-
-### `money`
-
-| Line | Mutant | Operator | Original | Mutated |
-| --- | --- | --- | --- | --- |
-| 200 | `L200:C23:int-literal-1` | int-literal | `100` | `99` |
 
 ### `utc_timestamp`
 
@@ -69,27 +57,8 @@ Grouped by the function they change.
 | 254 | `L254:C81:int-literal+1` | int-literal | `2` | `3` |
 | 254 | `L254:C81:int-literal-1` | int-literal | `2` | `1` |
 
-### `form_params`
-
-| Line | Mutant | Operator | Original | Mutated |
-| --- | --- | --- | --- | --- |
-| 341 | `L341:C28:int-literal-1` | int-literal | `0` | `-1` |
-
-### `list_books`
-
-| Line | Mutant | Operator | Original | Mutated |
-| --- | --- | --- | --- | --- |
-| 347 | `L347:C22:int-literal-1` | int-literal | `0` | `-1` |
-
 ### `borrow`
 
 | Line | Mutant | Operator | Original | Mutated |
 | --- | --- | --- | --- | --- |
-| 423 | `L423:C8:guard-order` | guard-order | `if lib.fees_due_cents(member.member_id) >= FEE_BORROW_BLOCK_CENTS: / if len(lib.active_loans_for(member.member_id)) >= MAX_ACTIVE_LOANS:` | `if len(lib.active_loans_for(member.member_id)) >= MAX_ACTIVE_LOANS: / if lib.fees_due_cents(member.member_id) >= FEE_BORROW_BLOCK_CENTS:` |
-
-### `get_loan`
-
-| Line | Mutant | Operator | Original | Mutated |
-| --- | --- | --- | --- | --- |
-| 448 | `L448:C25:int-literal+1` | int-literal | `404` | `405` |
-| 448 | `L448:C25:int-literal-1` | int-literal | `404` | `403` |
+| 431 | `L431:C8:guard-order` | guard-order | `if lib.fees_due_cents(member.member_id) >= FEE_BORROW_BLOCK_CENTS: / if len(lib.active_loans_for(member.member_id)) >= MAX_ACTIVE_LOANS:` | `if len(lib.active_loans_for(member.member_id)) >= MAX_ACTIVE_LOANS: / if lib.fees_due_cents(member.member_id) >= FEE_BORROW_BLOCK_CENTS:` |

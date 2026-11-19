@@ -281,6 +281,12 @@ def test_raw_query_passthrough():
     assert request.params == {"a": " b"}
 
 
+def test_raw_form_body_passes_repeated_keys_verbatim():
+    post = request_from_spec({"method": "POST", "path": "/members", "raw_form": "name=Ivy&name=Oz&tier=premium"})
+    assert post.body == "name=Ivy&name=Oz&tier=premium"
+    assert post.headers == {"content-type": "application/x-www-form-urlencoded"}
+
+
 def test_request_from_spec_defaults_and_form_body():
     request = request_from_spec({"path": "/quote", "query": {"sku": "WIDGET", "qty": "3"}})
     assert request.method == "GET"

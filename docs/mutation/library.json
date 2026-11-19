@@ -8,22 +8,22 @@
   "max_mutants": null,
   "jobs": 4,
   "timeout": 120.0,
-  "wall_seconds": 256.62,
+  "wall_seconds": 344.86,
   "baseline": {
-    "matched": 1564,
-    "total": 1564
+    "matched": 1821,
+    "total": 1821
   },
   "summary": {
-    "killed": 82,
-    "survived": 23,
+    "killed": 88,
+    "survived": 17,
     "errors": 0,
-    "score": 0.780952380952381,
+    "score": 0.8380952380952381,
     "by_operator": {
       "int-literal": {
-        "killed": 69,
-        "survived": 21,
+        "killed": 74,
+        "survived": 16,
         "errors": 0,
-        "score": 0.7666666666666667
+        "score": 0.8222222222222222
       },
       "comparison": {
         "killed": 8,
@@ -32,10 +32,10 @@
         "score": 1.0
       },
       "boolean": {
-        "killed": 3,
-        "survived": 1,
+        "killed": 4,
+        "survived": 0,
         "errors": 0,
-        "score": 0.75
+        "score": 1.0
       },
       "guard-order": {
         "killed": 2,
@@ -54,8 +54,8 @@
       "original": "14",
       "mutated": "15",
       "status": "killed",
-      "matched": 963,
-      "total": 1564,
+      "matched": 1134,
+      "total": 1821,
       "detail": ""
     },
     {
@@ -66,8 +66,8 @@
       "original": "14",
       "mutated": "13",
       "status": "killed",
-      "matched": 968,
-      "total": 1564,
+      "matched": 1131,
+      "total": 1821,
       "detail": ""
     },
     {
@@ -78,8 +78,8 @@
       "original": "28",
       "mutated": "29",
       "status": "killed",
-      "matched": 1275,
-      "total": 1564,
+      "matched": 1532,
+      "total": 1821,
       "detail": ""
     },
     {
@@ -90,8 +90,8 @@
       "original": "28",
       "mutated": "27",
       "status": "killed",
-      "matched": 1273,
-      "total": 1564,
+      "matched": 1530,
+      "total": 1821,
       "detail": ""
     },
     {
@@ -102,8 +102,8 @@
       "original": "5",
       "mutated": "6",
       "status": "killed",
-      "matched": 1561,
-      "total": 1564,
+      "matched": 1808,
+      "total": 1821,
       "detail": ""
     },
     {
@@ -114,8 +114,8 @@
       "original": "5",
       "mutated": "4",
       "status": "killed",
-      "matched": 1542,
-      "total": 1564,
+      "matched": 1791,
+      "total": 1821,
       "detail": ""
     },
     {
@@ -126,8 +126,8 @@
       "original": "2",
       "mutated": "3",
       "status": "killed",
-      "matched": 1140,
-      "total": 1564,
+      "matched": 1388,
+      "total": 1821,
       "detail": ""
     },
     {
@@ -138,8 +138,8 @@
       "original": "2",
       "mutated": "1",
       "status": "killed",
-      "matched": 1143,
-      "total": 1564,
+      "matched": 1389,
+      "total": 1821,
       "detail": ""
     },
     {
@@ -150,8 +150,8 @@
       "original": "75",
       "mutated": "76",
       "status": "killed",
-      "matched": 1164,
-      "total": 1564,
+      "matched": 1414,
+      "total": 1821,
       "detail": ""
     },
     {
@@ -162,8 +162,8 @@
       "original": "75",
       "mutated": "74",
       "status": "killed",
-      "matched": 1140,
-      "total": 1564,
+      "matched": 1388,
+      "total": 1821,
       "detail": ""
     },
     {
@@ -174,8 +174,8 @@
       "original": "25",
       "mutated": "26",
       "status": "killed",
-      "matched": 1173,
-      "total": 1564,
+      "matched": 1423,
+      "total": 1821,
       "detail": ""
     },
     {
@@ -186,8 +186,8 @@
       "original": "25",
       "mutated": "24",
       "status": "killed",
-      "matched": 1141,
-      "total": 1564,
+      "matched": 1389,
+      "total": 1821,
       "detail": ""
     },
     {
@@ -198,8 +198,8 @@
       "original": "1000",
       "mutated": "1001",
       "status": "killed",
-      "matched": 1430,
-      "total": 1564,
+      "matched": 1687,
+      "total": 1821,
       "detail": ""
     },
     {
@@ -210,8 +210,8 @@
       "original": "1000",
       "mutated": "999",
       "status": "killed",
-      "matched": 1419,
-      "total": 1564,
+      "matched": 1673,
+      "total": 1821,
       "detail": ""
     },
     {
@@ -222,8 +222,8 @@
       "original": "500",
       "mutated": "501",
       "status": "killed",
-      "matched": 1550,
-      "total": 1564,
+      "matched": 1807,
+      "total": 1821,
       "detail": ""
     },
     {
@@ -234,8 +234,8 @@
       "original": "500",
       "mutated": "499",
       "status": "survived",
-      "matched": 1564,
-      "total": 1564,
+      "matched": 1821,
+      "total": 1821,
       "detail": ""
     },
     {
@@ -246,8 +246,8 @@
       "original": "10",
       "mutated": "11",
       "status": "killed",
-      "matched": 1562,
-      "total": 1564,
+      "matched": 1819,
+      "total": 1821,
       "detail": ""
     },
     {
@@ -258,8 +258,8 @@
       "original": "10",
       "mutated": "9",
       "status": "killed",
-      "matched": 1562,
-      "total": 1564,
+      "matched": 1819,
+      "total": 1821,
       "detail": ""
     },
     {
@@ -270,8 +270,8 @@
       "original": "1",
       "mutated": "2",
       "status": "killed",
-      "matched": 1561,
-      "total": 1564,
+      "matched": 1818,
+      "total": 1821,
       "detail": ""
     },
     {
@@ -282,8 +282,8 @@
       "original": "1",
       "mutated": "0",
       "status": "killed",
-      "matched": 1562,
-      "total": 1564,
+      "matched": 1819,
+      "total": 1821,
       "detail": ""
     },
     {
@@ -294,8 +294,8 @@
       "original": "50",
       "mutated": "51",
       "status": "killed",
-      "matched": 1553,
-      "total": 1564,
+      "matched": 1810,
+      "total": 1821,
       "detail": ""
     },
     {
@@ -306,8 +306,8 @@
       "original": "50",
       "mutated": "49",
       "status": "killed",
-      "matched": 1552,
-      "total": 1564,
+      "matched": 1809,
+      "total": 1821,
       "detail": ""
     },
     {
@@ -318,8 +318,8 @@
       "original": "1",
       "mutated": "2",
       "status": "killed",
-      "matched": 1496,
-      "total": 1564,
+      "matched": 1753,
+      "total": 1821,
       "detail": ""
     },
     {
@@ -330,8 +330,8 @@
       "original": "1",
       "mutated": "0",
       "status": "survived",
-      "matched": 1564,
-      "total": 1564,
+      "matched": 1821,
+      "total": 1821,
       "detail": ""
     },
     {
@@ -342,8 +342,8 @@
       "original": "8",
       "mutated": "9",
       "status": "survived",
-      "matched": 1564,
-      "total": 1564,
+      "matched": 1821,
+      "total": 1821,
       "detail": ""
     },
     {
@@ -354,8 +354,8 @@
       "original": "8",
       "mutated": "7",
       "status": "survived",
-      "matched": 1564,
-      "total": 1564,
+      "matched": 1821,
+      "total": 1821,
       "detail": ""
     },
     {
@@ -366,8 +366,8 @@
       "original": "6",
       "mutated": "7",
       "status": "survived",
-      "matched": 1564,
-      "total": 1564,
+      "matched": 1821,
+      "total": 1821,
       "detail": ""
     },
     {
@@ -378,8 +378,8 @@
       "original": "6",
       "mutated": "5",
       "status": "survived",
-      "matched": 1564,
-      "total": 1564,
+      "matched": 1821,
+      "total": 1821,
       "detail": ""
     },
     {
@@ -390,8 +390,8 @@
       "original": "0",
       "mutated": "1",
       "status": "killed",
-      "matched": 1487,
-      "total": 1564,
+      "matched": 1743,
+      "total": 1821,
       "detail": ""
     },
     {
@@ -402,8 +402,8 @@
       "original": "0",
       "mutated": "-1",
       "status": "killed",
-      "matched": 1487,
-      "total": 1564,
+      "matched": 1743,
+      "total": 1821,
       "detail": ""
     },
     {
@@ -413,9 +413,9 @@
       "function": "parse_iso_date",
       "original": "raw is None or not _ISO_DATE.fullmatch(raw.strip())",
       "mutated": "raw is None and (not _ISO_DATE.fullmatch(raw.strip()))",
-      "status": "survived",
-      "matched": 1564,
-      "total": 1564,
+      "status": "killed",
+      "matched": 1819,
+      "total": 1821,
       "detail": ""
     },
     {
@@ -426,8 +426,8 @@
       "original": "raw.strip().lower() == PREMIUM_TIER",
       "mutated": "raw.strip().lower() != PREMIUM_TIER",
       "status": "killed",
-      "matched": 300,
-      "total": 1564,
+      "matched": 409,
+      "total": 1821,
       "detail": ""
     },
     {
@@ -438,8 +438,8 @@
       "original": "days_late <= FEE_FREE_DAYS",
       "mutated": "days_late < FEE_FREE_DAYS",
       "status": "killed",
-      "matched": 1533,
-      "total": 1564,
+      "matched": 1786,
+      "total": 1821,
       "detail": ""
     },
     {
@@ -450,8 +450,8 @@
       "original": "0",
       "mutated": "1",
       "status": "killed",
-      "matched": 1338,
-      "total": 1564,
+      "matched": 1531,
+      "total": 1821,
       "detail": ""
     },
     {
@@ -462,8 +462,8 @@
       "original": "0",
       "mutated": "-1",
       "status": "killed",
-      "matched": 1334,
-      "total": 1564,
+      "matched": 1527,
+      "total": 1821,
       "detail": ""
     },
     {
@@ -474,8 +474,8 @@
       "original": "1",
       "mutated": "2",
       "status": "killed",
-      "matched": 1140,
-      "total": 1564,
+      "matched": 1388,
+      "total": 1821,
       "detail": ""
     },
     {
@@ -486,8 +486,8 @@
       "original": "1",
       "mutated": "0",
       "status": "killed",
-      "matched": 1162,
-      "total": 1564,
+      "matched": 1412,
+      "total": 1821,
       "detail": ""
     },
     {
@@ -498,8 +498,8 @@
       "original": "100",
       "mutated": "101",
       "status": "killed",
-      "matched": 1271,
-      "total": 1564,
+      "matched": 1522,
+      "total": 1821,
       "detail": ""
     },
     {
@@ -509,9 +509,9 @@
       "function": "money",
       "original": "100",
       "mutated": "99",
-      "status": "survived",
-      "matched": 1564,
-      "total": 1564,
+      "status": "killed",
+      "matched": 1820,
+      "total": 1821,
       "detail": ""
     },
     {
@@ -522,8 +522,8 @@
       "original": "100",
       "mutated": "101",
       "status": "killed",
-      "matched": 1030,
-      "total": 1564,
+      "matched": 1278,
+      "total": 1821,
       "detail": ""
     },
     {
@@ -534,8 +534,8 @@
       "original": "100",
       "mutated": "99",
       "status": "killed",
-      "matched": 1030,
-      "total": 1564,
+      "matched": 1278,
+      "total": 1821,
       "detail": ""
     },
     {
@@ -546,8 +546,8 @@
       "original": "1000",
       "mutated": "1001",
       "status": "survived",
-      "matched": 1564,
-      "total": 1564,
+      "matched": 1821,
+      "total": 1821,
       "detail": ""
     },
     {
@@ -558,8 +558,8 @@
       "original": "1000",
       "mutated": "999",
       "status": "survived",
-      "matched": 1564,
-      "total": 1564,
+      "matched": 1821,
+      "total": 1821,
       "detail": ""
     },
     {
@@ -570,8 +570,8 @@
       "original": "0",
       "mutated": "1",
       "status": "survived",
-      "matched": 1564,
-      "total": 1564,
+      "matched": 1821,
+      "total": 1821,
       "detail": ""
     },
     {
@@ -582,8 +582,8 @@
       "original": "0",
       "mutated": "-1",
       "status": "survived",
-      "matched": 1564,
-      "total": 1564,
+      "matched": 1821,
+      "total": 1821,
       "detail": ""
     },
     {
@@ -594,8 +594,8 @@
       "original": "0",
       "mutated": "1",
       "status": "survived",
-      "matched": 1564,
-      "total": 1564,
+      "matched": 1821,
+      "total": 1821,
       "detail": ""
     },
     {
@@ -606,8 +606,8 @@
       "original": "0",
       "mutated": "-1",
       "status": "survived",
-      "matched": 1564,
-      "total": 1564,
+      "matched": 1821,
+      "total": 1821,
       "detail": ""
     },
     {
@@ -618,8 +618,8 @@
       "original": "2",
       "mutated": "3",
       "status": "survived",
-      "matched": 1564,
-      "total": 1564,
+      "matched": 1821,
+      "total": 1821,
       "detail": ""
     },
     {
@@ -630,8 +630,8 @@
       "original": "2",
       "mutated": "1",
       "status": "survived",
-      "matched": 1564,
-      "total": 1564,
+      "matched": 1821,
+      "total": 1821,
       "detail": ""
     },
     {
@@ -642,8 +642,8 @@
       "original": "2",
       "mutated": "3",
       "status": "survived",
-      "matched": 1564,
-      "total": 1564,
+      "matched": 1821,
+      "total": 1821,
       "detail": ""
     },
     {
@@ -654,8 +654,8 @@
       "original": "2",
       "mutated": "1",
       "status": "survived",
-      "matched": 1564,
-      "total": 1564,
+      "matched": 1821,
+      "total": 1821,
       "detail": ""
     },
     {
@@ -666,8 +666,8 @@
       "original": "l.member_id == member_id and l.active",
       "mutated": "l.member_id == member_id or l.active",
       "status": "killed",
-      "matched": 1364,
-      "total": 1564,
+      "matched": 1558,
+      "total": 1821,
       "detail": ""
     },
     {
@@ -678,8 +678,8 @@
       "original": "l.member_id == member_id",
       "mutated": "l.member_id != member_id",
       "status": "killed",
-      "matched": 1417,
-      "total": 1564,
+      "matched": 1609,
+      "total": 1821,
       "detail": ""
     },
     {
@@ -690,8 +690,8 @@
       "original": "l.member_id == member_id and (not l.active)",
       "mutated": "l.member_id == member_id or not l.active",
       "status": "killed",
-      "matched": 313,
-      "total": 1564,
+      "matched": 353,
+      "total": 1821,
       "detail": ""
     },
     {
@@ -702,8 +702,8 @@
       "original": "l.member_id == member_id",
       "mutated": "l.member_id != member_id",
       "status": "killed",
-      "matched": 312,
-      "total": 1564,
+      "matched": 352,
+      "total": 1821,
       "detail": ""
     },
     {
@@ -714,8 +714,8 @@
       "original": "l.isbn == isbn and l.active",
       "mutated": "l.isbn == isbn or l.active",
       "status": "killed",
-      "matched": 500,
-      "total": 1564,
+      "matched": 602,
+      "total": 1821,
       "detail": ""
     },
     {
@@ -726,260 +726,200 @@
       "original": "l.isbn == isbn",
       "mutated": "l.isbn != isbn",
       "status": "killed",
-      "matched": 1228,
-      "total": 1564,
+      "matched": 1330,
+      "total": 1821,
       "detail": ""
     },
     {
-      "id": "L341:C28:int-literal+1",
+      "id": "L349:C29:int-literal+1",
       "operator": "int-literal",
-      "line": 341,
+      "line": 349,
       "function": "form_params",
-      "original": "0",
-      "mutated": "1",
+      "original": "1",
+      "mutated": "2",
       "status": "killed",
-      "matched": 114,
-      "total": 1564,
+      "matched": 148,
+      "total": 1821,
       "detail": ""
     },
     {
-      "id": "L341:C28:int-literal-1",
+      "id": "L349:C29:int-literal-1",
       "operator": "int-literal",
-      "line": 341,
+      "line": 349,
       "function": "form_params",
-      "original": "0",
-      "mutated": "-1",
-      "status": "survived",
-      "matched": 1564,
-      "total": 1564,
+      "original": "1",
+      "mutated": "0",
+      "status": "killed",
+      "matched": 1820,
+      "total": 1821,
       "detail": ""
     },
     {
-      "id": "L347:C22:int-literal+1",
+      "id": "L355:C22:int-literal+1",
       "operator": "int-literal",
-      "line": 347,
+      "line": 355,
       "function": "list_books",
       "original": "0",
       "mutated": "1",
       "status": "killed",
-      "matched": 1485,
-      "total": 1564,
+      "matched": 1741,
+      "total": 1821,
       "detail": ""
     },
     {
-      "id": "L347:C22:int-literal-1",
+      "id": "L355:C22:int-literal-1",
       "operator": "int-literal",
-      "line": 347,
+      "line": 355,
       "function": "list_books",
       "original": "0",
       "mutated": "-1",
-      "status": "survived",
-      "matched": 1564,
-      "total": 1564,
+      "status": "killed",
+      "matched": 1820,
+      "total": 1821,
       "detail": ""
     },
     {
-      "id": "L348:C71:int-literal+1",
+      "id": "L356:C71:int-literal+1",
       "operator": "int-literal",
-      "line": 348,
+      "line": 356,
       "function": "list_books",
       "original": "1",
       "mutated": "2",
       "status": "killed",
-      "matched": 1492,
-      "total": 1564,
+      "matched": 1749,
+      "total": 1821,
       "detail": ""
     },
     {
-      "id": "L348:C71:int-literal-1",
+      "id": "L356:C71:int-literal-1",
       "operator": "int-literal",
-      "line": 348,
+      "line": 356,
       "function": "list_books",
       "original": "1",
       "mutated": "0",
       "status": "killed",
-      "matched": 1562,
-      "total": 1564,
+      "matched": 1819,
+      "total": 1821,
       "detail": ""
     },
     {
-      "id": "L354:C24:int-literal+1",
+      "id": "L362:C24:int-literal+1",
       "operator": "int-literal",
-      "line": 354,
+      "line": 362,
       "function": "list_books",
       "original": "1",
       "mutated": "2",
       "status": "killed",
-      "matched": 1488,
-      "total": 1564,
+      "matched": 1744,
+      "total": 1821,
       "detail": ""
     },
     {
-      "id": "L354:C24:int-literal-1",
+      "id": "L362:C24:int-literal-1",
       "operator": "int-literal",
-      "line": 354,
+      "line": 362,
       "function": "list_books",
       "original": "1",
       "mutated": "0",
       "status": "killed",
-      "matched": 1489,
-      "total": 1564,
+      "matched": 1745,
+      "total": 1821,
       "detail": ""
     },
     {
-      "id": "L373:C25:int-literal+1",
+      "id": "L381:C25:int-literal+1",
       "operator": "int-literal",
-      "line": 373,
+      "line": 381,
       "function": "get_book",
       "original": "404",
       "mutated": "405",
       "status": "killed",
-      "matched": 1563,
-      "total": 1564,
+      "matched": 1820,
+      "total": 1821,
       "detail": ""
     },
     {
-      "id": "L373:C25:int-literal-1",
+      "id": "L381:C25:int-literal-1",
       "operator": "int-literal",
-      "line": 373,
+      "line": 381,
       "function": "get_book",
       "original": "404",
       "mutated": "403",
       "status": "killed",
-      "matched": 1563,
-      "total": 1564,
+      "matched": 1820,
+      "total": 1821,
       "detail": ""
     },
     {
-      "id": "L387:C25:int-literal+1",
+      "id": "L395:C25:int-literal+1",
       "operator": "int-literal",
-      "line": 387,
+      "line": 395,
       "function": "create_member",
       "original": "400",
       "mutated": "401",
       "status": "killed",
-      "matched": 1558,
-      "total": 1564,
+      "matched": 1815,
+      "total": 1821,
       "detail": ""
     },
     {
-      "id": "L387:C25:int-literal-1",
+      "id": "L395:C25:int-literal-1",
       "operator": "int-literal",
-      "line": 387,
+      "line": 395,
       "function": "create_member",
       "original": "400",
       "mutated": "399",
       "status": "killed",
-      "matched": 1558,
-      "total": 1564,
+      "matched": 1815,
+      "total": 1821,
       "detail": ""
     },
     {
-      "id": "L396:C85:int-literal+1",
+      "id": "L404:C85:int-literal+1",
       "operator": "int-literal",
-      "line": 396,
+      "line": 404,
       "function": "create_member",
       "original": "201",
       "mutated": "202",
       "status": "killed",
-      "matched": 1297,
-      "total": 1564,
+      "matched": 1501,
+      "total": 1821,
       "detail": ""
     },
     {
-      "id": "L396:C85:int-literal-1",
+      "id": "L404:C85:int-literal-1",
       "operator": "int-literal",
-      "line": 396,
+      "line": 404,
       "function": "create_member",
       "original": "201",
       "mutated": "200",
       "status": "killed",
-      "matched": 1297,
-      "total": 1564,
+      "matched": 1501,
+      "total": 1821,
       "detail": ""
     },
     {
-      "id": "L402:C25:int-literal+1",
+      "id": "L410:C25:int-literal+1",
       "operator": "int-literal",
-      "line": 402,
+      "line": 410,
       "function": "get_member",
       "original": "404",
       "mutated": "405",
       "status": "killed",
-      "matched": 1557,
-      "total": 1564,
+      "matched": 1814,
+      "total": 1821,
       "detail": ""
     },
     {
-      "id": "L402:C25:int-literal-1",
+      "id": "L410:C25:int-literal-1",
       "operator": "int-literal",
-      "line": 402,
+      "line": 410,
       "function": "get_member",
       "original": "404",
       "mutated": "403",
       "status": "killed",
-      "matched": 1557,
-      "total": 1564,
-      "detail": ""
-    },
-    {
-      "id": "L412:C25:int-literal+1",
-      "operator": "int-literal",
-      "line": 412,
-      "function": "borrow",
-      "original": "404",
-      "mutated": "405",
-      "status": "killed",
-      "matched": 1559,
-      "total": 1564,
-      "detail": ""
-    },
-    {
-      "id": "L412:C25:int-literal-1",
-      "operator": "int-literal",
-      "line": 412,
-      "function": "borrow",
-      "original": "404",
-      "mutated": "403",
-      "status": "killed",
-      "matched": 1559,
-      "total": 1564,
-      "detail": ""
-    },
-    {
-      "id": "L416:C25:int-literal+1",
-      "operator": "int-literal",
-      "line": 416,
-      "function": "borrow",
-      "original": "400",
-      "mutated": "401",
-      "status": "killed",
-      "matched": 1535,
-      "total": 1564,
-      "detail": ""
-    },
-    {
-      "id": "L416:C25:int-literal-1",
-      "operator": "int-literal",
-      "line": 416,
-      "function": "borrow",
-      "original": "400",
-      "mutated": "399",
-      "status": "killed",
-      "matched": 1535,
-      "total": 1564,
-      "detail": ""
-    },
-    {
-      "id": "L419:C8:guard-order",
-      "operator": "guard-order",
-      "line": 419,
-      "function": "borrow",
-      "original": "if isbn not in lib.titles: / if lib.fees_due_cents(member.member_id) >= FEE_BORROW_BLOCK_CENTS:",
-      "mutated": "if lib.fees_due_cents(member.member_id) >= FEE_BORROW_BLOCK_CENTS: / if isbn not in lib.titles:",
-      "status": "killed",
-      "matched": 1562,
-      "total": 1564,
+      "matched": 1814,
+      "total": 1821,
       "detail": ""
     },
     {
@@ -990,8 +930,8 @@
       "original": "404",
       "mutated": "405",
       "status": "killed",
-      "matched": 1554,
-      "total": 1564,
+      "matched": 1816,
+      "total": 1821,
       "detail": ""
     },
     {
@@ -1002,32 +942,8 @@
       "original": "404",
       "mutated": "403",
       "status": "killed",
-      "matched": 1554,
-      "total": 1564,
-      "detail": ""
-    },
-    {
-      "id": "L423:C8:guard-order",
-      "operator": "guard-order",
-      "line": 423,
-      "function": "borrow",
-      "original": "if lib.fees_due_cents(member.member_id) >= FEE_BORROW_BLOCK_CENTS: / if len(lib.active_loans_for(member.member_id)) >= MAX_ACTIVE_LOANS:",
-      "mutated": "if len(lib.active_loans_for(member.member_id)) >= MAX_ACTIVE_LOANS: / if lib.fees_due_cents(member.member_id) >= FEE_BORROW_BLOCK_CENTS:",
-      "status": "survived",
-      "matched": 1564,
-      "total": 1564,
-      "detail": ""
-    },
-    {
-      "id": "L423:C11:comparison#0:GtE->Gt",
-      "operator": "comparison",
-      "line": 423,
-      "function": "borrow",
-      "original": "lib.fees_due_cents(member.member_id) >= FEE_BORROW_BLOCK_CENTS",
-      "mutated": "lib.fees_due_cents(member.member_id) > FEE_BORROW_BLOCK_CENTS",
-      "status": "killed",
-      "matched": 1550,
-      "total": 1564,
+      "matched": 1816,
+      "total": 1821,
       "detail": ""
     },
     {
@@ -1035,11 +951,11 @@
       "operator": "int-literal",
       "line": 424,
       "function": "borrow",
-      "original": "403",
-      "mutated": "404",
+      "original": "400",
+      "mutated": "401",
       "status": "killed",
-      "matched": 1538,
-      "total": 1564,
+      "matched": 1791,
+      "total": 1821,
       "detail": ""
     },
     {
@@ -1047,11 +963,11 @@
       "operator": "int-literal",
       "line": 424,
       "function": "borrow",
-      "original": "403",
-      "mutated": "402",
+      "original": "400",
+      "mutated": "399",
       "status": "killed",
-      "matched": 1538,
-      "total": 1564,
+      "matched": 1791,
+      "total": 1821,
       "detail": ""
     },
     {
@@ -1059,23 +975,11 @@
       "operator": "guard-order",
       "line": 427,
       "function": "borrow",
-      "original": "if len(lib.active_loans_for(member.member_id)) >= MAX_ACTIVE_LOANS: / if not lib.is_available(isbn):",
-      "mutated": "if not lib.is_available(isbn): / if len(lib.active_loans_for(member.member_id)) >= MAX_ACTIVE_LOANS:",
+      "original": "if isbn not in lib.titles: / if lib.fees_due_cents(member.member_id) >= FEE_BORROW_BLOCK_CENTS:",
+      "mutated": "if lib.fees_due_cents(member.member_id) >= FEE_BORROW_BLOCK_CENTS: / if isbn not in lib.titles:",
       "status": "killed",
-      "matched": 1563,
-      "total": 1564,
-      "detail": ""
-    },
-    {
-      "id": "L427:C11:comparison#0:GtE->Gt",
-      "operator": "comparison",
-      "line": 427,
-      "function": "borrow",
-      "original": "len(lib.active_loans_for(member.member_id)) >= MAX_ACTIVE_LOANS",
-      "mutated": "len(lib.active_loans_for(member.member_id)) > MAX_ACTIVE_LOANS",
-      "status": "killed",
-      "matched": 1561,
-      "total": 1564,
+      "matched": 1819,
+      "total": 1821,
       "detail": ""
     },
     {
@@ -1083,11 +987,11 @@
       "operator": "int-literal",
       "line": 428,
       "function": "borrow",
-      "original": "409",
-      "mutated": "410",
+      "original": "404",
+      "mutated": "405",
       "status": "killed",
-      "matched": 1561,
-      "total": 1564,
+      "matched": 1811,
+      "total": 1821,
       "detail": ""
     },
     {
@@ -1095,215 +999,311 @@
       "operator": "int-literal",
       "line": 428,
       "function": "borrow",
-      "original": "409",
-      "mutated": "408",
+      "original": "404",
+      "mutated": "403",
       "status": "killed",
-      "matched": 1561,
-      "total": 1564,
+      "matched": 1811,
+      "total": 1821,
       "detail": ""
     },
     {
-      "id": "L431:C25:int-literal+1",
-      "operator": "int-literal",
+      "id": "L431:C8:guard-order",
+      "operator": "guard-order",
       "line": 431,
+      "function": "borrow",
+      "original": "if lib.fees_due_cents(member.member_id) >= FEE_BORROW_BLOCK_CENTS: / if len(lib.active_loans_for(member.member_id)) >= MAX_ACTIVE_LOANS:",
+      "mutated": "if len(lib.active_loans_for(member.member_id)) >= MAX_ACTIVE_LOANS: / if lib.fees_due_cents(member.member_id) >= FEE_BORROW_BLOCK_CENTS:",
+      "status": "survived",
+      "matched": 1821,
+      "total": 1821,
+      "detail": ""
+    },
+    {
+      "id": "L431:C11:comparison#0:GtE->Gt",
+      "operator": "comparison",
+      "line": 431,
+      "function": "borrow",
+      "original": "lib.fees_due_cents(member.member_id) >= FEE_BORROW_BLOCK_CENTS",
+      "mutated": "lib.fees_due_cents(member.member_id) > FEE_BORROW_BLOCK_CENTS",
+      "status": "killed",
+      "matched": 1807,
+      "total": 1821,
+      "detail": ""
+    },
+    {
+      "id": "L432:C25:int-literal+1",
+      "operator": "int-literal",
+      "line": 432,
+      "function": "borrow",
+      "original": "403",
+      "mutated": "404",
+      "status": "killed",
+      "matched": 1791,
+      "total": 1821,
+      "detail": ""
+    },
+    {
+      "id": "L432:C25:int-literal-1",
+      "operator": "int-literal",
+      "line": 432,
+      "function": "borrow",
+      "original": "403",
+      "mutated": "402",
+      "status": "killed",
+      "matched": 1791,
+      "total": 1821,
+      "detail": ""
+    },
+    {
+      "id": "L435:C8:guard-order",
+      "operator": "guard-order",
+      "line": 435,
+      "function": "borrow",
+      "original": "if len(lib.active_loans_for(member.member_id)) >= MAX_ACTIVE_LOANS: / if not lib.available_to(member.member_id, isbn):",
+      "mutated": "if not lib.available_to(member.member_id, isbn): / if len(lib.active_loans_for(member.member_id)) >= MAX_ACTIVE_LOANS:",
+      "status": "killed",
+      "matched": 1819,
+      "total": 1821,
+      "detail": ""
+    },
+    {
+      "id": "L435:C11:comparison#0:GtE->Gt",
+      "operator": "comparison",
+      "line": 435,
+      "function": "borrow",
+      "original": "len(lib.active_loans_for(member.member_id)) >= MAX_ACTIVE_LOANS",
+      "mutated": "len(lib.active_loans_for(member.member_id)) > MAX_ACTIVE_LOANS",
+      "status": "killed",
+      "matched": 1808,
+      "total": 1821,
+      "detail": ""
+    },
+    {
+      "id": "L436:C25:int-literal+1",
+      "operator": "int-literal",
+      "line": 436,
       "function": "borrow",
       "original": "409",
       "mutated": "410",
       "status": "killed",
-      "matched": 1562,
-      "total": 1564,
+      "matched": 1814,
+      "total": 1821,
       "detail": ""
     },
     {
-      "id": "L431:C25:int-literal-1",
+      "id": "L436:C25:int-literal-1",
       "operator": "int-literal",
-      "line": 431,
+      "line": 436,
       "function": "borrow",
       "original": "409",
       "mutated": "408",
       "status": "killed",
-      "matched": 1562,
-      "total": 1564,
+      "matched": 1814,
+      "total": 1821,
       "detail": ""
     },
     {
-      "id": "L442:C75:int-literal+1",
+      "id": "L439:C25:int-literal+1",
       "operator": "int-literal",
-      "line": 442,
+      "line": 439,
+      "function": "borrow",
+      "original": "409",
+      "mutated": "410",
+      "status": "killed",
+      "matched": 1805,
+      "total": 1821,
+      "detail": ""
+    },
+    {
+      "id": "L439:C25:int-literal-1",
+      "operator": "int-literal",
+      "line": 439,
+      "function": "borrow",
+      "original": "409",
+      "mutated": "408",
+      "status": "killed",
+      "matched": 1805,
+      "total": 1821,
+      "detail": ""
+    },
+    {
+      "id": "L450:C75:int-literal+1",
+      "operator": "int-literal",
+      "line": 450,
       "function": "borrow",
       "original": "201",
       "mutated": "202",
       "status": "killed",
-      "matched": 1241,
-      "total": 1564,
+      "matched": 1426,
+      "total": 1821,
       "detail": ""
     },
     {
-      "id": "L442:C75:int-literal-1",
+      "id": "L450:C75:int-literal-1",
       "operator": "int-literal",
-      "line": 442,
+      "line": 450,
       "function": "borrow",
       "original": "201",
       "mutated": "200",
       "status": "killed",
-      "matched": 1241,
-      "total": 1564,
+      "matched": 1426,
+      "total": 1821,
       "detail": ""
     },
     {
-      "id": "L448:C25:int-literal+1",
+      "id": "L456:C25:int-literal+1",
       "operator": "int-literal",
-      "line": 448,
+      "line": 456,
       "function": "get_loan",
       "original": "404",
       "mutated": "405",
-      "status": "survived",
-      "matched": 1564,
-      "total": 1564,
+      "status": "killed",
+      "matched": 1820,
+      "total": 1821,
       "detail": ""
     },
     {
-      "id": "L448:C25:int-literal-1",
+      "id": "L456:C25:int-literal-1",
       "operator": "int-literal",
-      "line": 448,
+      "line": 456,
       "function": "get_loan",
       "original": "404",
       "mutated": "403",
-      "status": "survived",
-      "matched": 1564,
-      "total": 1564,
+      "status": "killed",
+      "matched": 1820,
+      "total": 1821,
       "detail": ""
     },
     {
-      "id": "L455:C25:int-literal+1",
+      "id": "L463:C25:int-literal+1",
       "operator": "int-literal",
-      "line": 455,
+      "line": 463,
       "function": "return_loan",
       "original": "404",
       "mutated": "405",
       "status": "killed",
-      "matched": 1540,
-      "total": 1564,
+      "matched": 1775,
+      "total": 1821,
       "detail": ""
     },
     {
-      "id": "L455:C25:int-literal-1",
+      "id": "L463:C25:int-literal-1",
       "operator": "int-literal",
-      "line": 455,
+      "line": 463,
       "function": "return_loan",
       "original": "404",
       "mutated": "403",
       "status": "killed",
-      "matched": 1540,
-      "total": 1564,
+      "matched": 1775,
+      "total": 1821,
       "detail": ""
     },
     {
-      "id": "L459:C25:int-literal+1",
+      "id": "L467:C25:int-literal+1",
       "operator": "int-literal",
-      "line": 459,
+      "line": 467,
       "function": "return_loan",
       "original": "400",
       "mutated": "401",
       "status": "killed",
-      "matched": 1559,
-      "total": 1564,
+      "matched": 1815,
+      "total": 1821,
       "detail": ""
     },
     {
-      "id": "L459:C25:int-literal-1",
+      "id": "L467:C25:int-literal-1",
       "operator": "int-literal",
-      "line": 459,
+      "line": 467,
       "function": "return_loan",
       "original": "400",
       "mutated": "399",
       "status": "killed",
-      "matched": 1559,
-      "total": 1564,
+      "matched": 1815,
+      "total": 1821,
       "detail": ""
     },
     {
-      "id": "L467:C15:comparison#0:Lt->LtE",
+      "id": "L475:C15:comparison#0:Lt->LtE",
       "operator": "comparison",
-      "line": 467,
+      "line": 475,
       "function": "return_loan",
       "original": "returned_on < loan.borrowed_on",
       "mutated": "returned_on <= loan.borrowed_on",
       "status": "killed",
-      "matched": 1552,
-      "total": 1564,
+      "matched": 1809,
+      "total": 1821,
       "detail": ""
     },
     {
-      "id": "L468:C29:int-literal+1",
+      "id": "L476:C29:int-literal+1",
       "operator": "int-literal",
-      "line": 468,
+      "line": 476,
       "function": "return_loan",
       "original": "400",
       "mutated": "401",
       "status": "killed",
-      "matched": 1563,
-      "total": 1564,
+      "matched": 1820,
+      "total": 1821,
       "detail": ""
     },
     {
-      "id": "L468:C29:int-literal-1",
+      "id": "L476:C29:int-literal-1",
       "operator": "int-literal",
-      "line": 468,
+      "line": 476,
       "function": "return_loan",
       "original": "400",
       "mutated": "399",
       "status": "killed",
-      "matched": 1563,
-      "total": 1564,
+      "matched": 1820,
+      "total": 1821,
       "detail": ""
     },
     {
-      "id": "L470:C67:int-literal+1",
+      "id": "L478:C67:int-literal+1",
       "operator": "int-literal",
-      "line": 470,
+      "line": 478,
       "function": "return_loan",
       "original": "0",
       "mutated": "1",
       "status": "killed",
-      "matched": 1399,
-      "total": 1564,
+      "matched": 1596,
+      "total": 1821,
       "detail": ""
     },
     {
-      "id": "L470:C67:int-literal-1",
+      "id": "L478:C67:int-literal-1",
       "operator": "int-literal",
-      "line": 470,
+      "line": 478,
       "function": "return_loan",
       "original": "0",
       "mutated": "-1",
       "status": "killed",
-      "matched": 1406,
-      "total": 1564,
+      "matched": 1611,
+      "total": 1821,
       "detail": ""
     },
     {
-      "id": "L478:C21:int-literal+1",
+      "id": "L486:C21:int-literal+1",
       "operator": "int-literal",
-      "line": 478,
+      "line": 486,
       "function": "not_found",
       "original": "404",
       "mutated": "405",
       "status": "killed",
-      "matched": 1563,
-      "total": 1564,
+      "matched": 1820,
+      "total": 1821,
       "detail": ""
     },
     {
-      "id": "L478:C21:int-literal-1",
+      "id": "L486:C21:int-literal-1",
       "operator": "int-literal",
-      "line": 478,
+      "line": 486,
       "function": "not_found",
       "original": "404",
       "mutated": "403",
       "status": "killed",
-      "matched": 1563,
-      "total": 1564,
+      "matched": 1820,
+      "total": 1821,
       "detail": ""
     }
   ]

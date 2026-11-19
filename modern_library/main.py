@@ -339,10 +339,14 @@ def make_app() -> FastAPI:
     lib = Library()
 
     async def form_params(request: Request) -> Dict[str, str]:
-        """Read a form-encoded body. Blank values are kept; first value wins."""
+        """Read a form-encoded body. Blank values are kept; last value wins.
+
+        Evidence: POST /members with name=Ivy&name=Oz stored name Oz (recorded
+        traffic). Query strings are different: GET /books keeps the first value.
+        """
         raw = (await request.body()).decode("utf-8", errors="replace")
         parsed = parse_qs(raw, keep_blank_values=True)
-        return {key: values[0] for key, values in parsed.items()}
+        return {key: values[-1] for key, values in parsed.items()}
 
     # --- books -------------------------------------------------------------
 
