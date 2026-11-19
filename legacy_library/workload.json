@@ -1,0 +1,158 @@
+{
+  "requests": [
+    {"method": "POST", "path": "/members", "form": {"name": "Ada", "tier": "standard"}},
+    {"method": "POST", "path": "/members", "form": {"name": "Ada", "tier": "standard"}},
+    {"method": "POST", "path": "/members", "form": {"name": "Ada", "tier": "gold"}},
+    {"method": "GET", "path": "/members/m_00000000", "query": {}},
+    {"method": "GET", "path": "/books/978-0-00-000001-9", "query": {}},
+    {"method": "GET", "path": "/books/9780000000026", "query": {}},
+    {"method": "GET", "path": "/books/9780000000000", "query": {}},
+    {"method": "POST", "path": "/loans", "form": {"member_id": "m_00000000", "isbn": "9780000000019", "borrowed_on": "2026-01-05"}},
+    {"method": "GET", "path": "/nope", "query": {}},
+    {"method": "GET", "path": "/books", "query": {"page": "8", "per_page": "10"}},
+    {"method": "GET", "path": "/books", "query": {"per_page": "80"}}
+  ],
+  "sweeps": [
+    {"method": "GET", "path": "/books", "vary": {"per_page": {"range": [0, 60, 1]}}},
+    {"method": "GET", "path": "/books", "vary": {
+      "page": {"values": [0, 1, 2, 6, 7]},
+      "per_page": {"values": ["10", "25"]}
+    }},
+    {"method": "GET", "path": "/books", "vary": {
+      "per_page": {"values": ["5abc", "abc", "", "-3", "7.9", "07"]}
+    }}
+  ],
+  "scenarios": [
+    {
+      "name": "join",
+      "vary": {
+        "tier": {"values": ["standard", "premium", "PREMIUM", " Premium ", "gold", null]},
+        "name": {"values": ["Ada", "  Grace  ", ""]}
+      },
+      "steps": [
+        {"method": "POST", "path": "/members", "form": {"name": "{{name}}", "tier": "{{tier}}"},
+         "capture": {"member": "member_id"}},
+        {"method": "GET", "path": "/members/{{member}}"}
+      ]
+    },
+    {
+      "name": "late-return",
+      "vary": {"returned_on": {"date_range": ["2026-01-10", "2026-03-15", 1]}},
+      "steps": [
+        {"method": "POST", "path": "/members", "form": {"name": "Lin", "tier": "standard"},
+         "capture": {"member": "member_id"}},
+        {"method": "POST", "path": "/loans",
+         "form": {"member_id": "{{member}}", "isbn": "9780000000033", "borrowed_on": "2026-01-05"},
+         "capture": {"loan": "loan_id"}},
+        {"method": "POST", "path": "/loans/{{loan}}/return", "form": {"returned_on": "{{returned_on}}"}},
+        {"method": "POST", "path": "/loans/{{loan}}/return", "form": {"returned_on": "2026-03-31"}},
+        {"method": "GET", "path": "/loans/{{loan}}"},
+        {"method": "GET", "path": "/members/{{member}}"}
+      ]
+    },
+    {
+      "name": "premium-late-return",
+      "vary": {"returned_on": {"date_range": ["2026-01-25", "2026-03-31", 1]}},
+      "steps": [
+        {"method": "POST", "path": "/members", "form": {"name": "Pim", "tier": "premium"},
+         "capture": {"member": "member_id"}},
+        {"method": "POST", "path": "/loans",
+         "form": {"member_id": "{{member}}", "isbn": "9780000000040", "borrowed_on": "2026-01-05"},
+         "capture": {"loan": "loan_id"}},
+        {"method": "POST", "path": "/loans/{{loan}}/return", "form": {"returned_on": "{{returned_on}}"}},
+        {"method": "POST", "path": "/loans/{{loan}}/return", "form": {"returned_on": "2026-03-31"}},
+        {"method": "GET", "path": "/loans/{{loan}}"},
+        {"method": "GET", "path": "/members/{{member}}"}
+      ]
+    },
+    {
+      "name": "fees-block",
+      "vary": {"returned_on": {"date_range": ["2026-01-19", "2026-02-20", 1]}},
+      "steps": [
+        {"method": "POST", "path": "/members", "form": {"name": "Kit", "tier": "standard"},
+         "capture": {"member": "member_id"}},
+        {"method": "POST", "path": "/loans",
+         "form": {"member_id": "{{member}}", "isbn": "9780000000057", "borrowed_on": "2026-01-05"},
+         "capture": {"loan": "loan_id"}},
+        {"method": "POST", "path": "/loans/{{loan}}/return", "form": {"returned_on": "{{returned_on}}"}},
+        {"method": "POST", "path": "/loans",
+         "form": {"member_id": "{{member}}", "isbn": "9780000000064", "borrowed_on": "2026-01-05"},
+         "capture": {"loan2": "loan_id"}},
+        {"method": "POST", "path": "/loans/{{loan2}}/return", "form": {"returned_on": "2026-01-06"}}
+      ]
+    },
+    {
+      "name": "loan-limit",
+      "vary": {"tier": {"values": ["standard", "premium"]}},
+      "steps": [
+        {"method": "POST", "path": "/members", "form": {"name": "Ben", "tier": "{{tier}}"},
+         "capture": {"member": "member_id"}},
+        {"method": "POST", "path": "/loans",
+         "form": {"member_id": "{{member}}", "isbn": "9780000000071", "borrowed_on": "2026-01-05"},
+         "capture": {"l1": "loan_id"}},
+        {"method": "POST", "path": "/loans",
+         "form": {"member_id": "{{member}}", "isbn": "9780000000088", "borrowed_on": "2026-01-05"},
+         "capture": {"l2": "loan_id"}},
+        {"method": "POST", "path": "/loans",
+         "form": {"member_id": "{{member}}", "isbn": "9780000000095", "borrowed_on": "2026-01-05"},
+         "capture": {"l3": "loan_id"}},
+        {"method": "POST", "path": "/loans",
+         "form": {"member_id": "{{member}}", "isbn": "9780000000101", "borrowed_on": "2026-01-05"},
+         "capture": {"l4": "loan_id"}},
+        {"method": "POST", "path": "/loans",
+         "form": {"member_id": "{{member}}", "isbn": "9780000000118", "borrowed_on": "2026-01-05"},
+         "capture": {"l5": "loan_id"}},
+        {"method": "POST", "path": "/loans",
+         "form": {"member_id": "{{member}}", "isbn": "9780000000125", "borrowed_on": "2026-01-05"},
+         "capture": {"l6": "loan_id"}},
+        {"method": "POST", "path": "/loans/{{l1}}/return", "form": {"returned_on": "2026-01-06"}},
+        {"method": "POST", "path": "/loans/{{l2}}/return", "form": {"returned_on": "2026-01-06"}},
+        {"method": "POST", "path": "/loans/{{l3}}/return", "form": {"returned_on": "2026-01-06"}},
+        {"method": "POST", "path": "/loans/{{l4}}/return", "form": {"returned_on": "2026-01-06"}},
+        {"method": "POST", "path": "/loans/{{l5}}/return", "form": {"returned_on": "2026-01-06"}}
+      ]
+    },
+    {
+      "name": "unavailable",
+      "steps": [
+        {"method": "POST", "path": "/members", "form": {"name": "Amy", "tier": "standard"},
+         "capture": {"a": "member_id"}},
+        {"method": "POST", "path": "/members", "form": {"name": "Bo", "tier": "standard"},
+         "capture": {"b": "member_id"}},
+        {"method": "POST", "path": "/loans",
+         "form": {"member_id": "{{a}}", "isbn": "9780000000132", "borrowed_on": "2026-01-05"},
+         "capture": {"la": "loan_id"}},
+        {"method": "POST", "path": "/loans",
+         "form": {"member_id": "{{b}}", "isbn": "9780000000132", "borrowed_on": "2026-01-05"}},
+        {"method": "POST", "path": "/loans/{{la}}/return", "form": {"returned_on": "2026-01-06"}},
+        {"method": "POST", "path": "/loans",
+         "form": {"member_id": "{{b}}", "isbn": "9780000000132", "borrowed_on": "2026-01-05"},
+         "capture": {"lb": "loan_id"}},
+        {"method": "POST", "path": "/loans/{{lb}}/return", "form": {"returned_on": "2026-01-06"}}
+      ]
+    },
+    {
+      "name": "hyphenated-isbn",
+      "steps": [
+        {"method": "POST", "path": "/members", "form": {"name": "Ivy", "tier": "standard"},
+         "capture": {"member": "member_id"}},
+        {"method": "POST", "path": "/loans",
+         "form": {"member_id": "{{member}}", "isbn": "9780000000149", "borrowed_on": "2026-01-05"},
+         "capture": {"l1": "loan_id"}},
+        {"method": "POST", "path": "/loans/{{l1}}/return", "form": {"returned_on": "2026-01-06"}},
+        {"method": "POST", "path": "/loans",
+         "form": {"member_id": "{{member}}", "isbn": "978-0-00-000014-9", "borrowed_on": "2026-01-05"},
+         "capture": {"l2": "loan_id"}},
+        {"method": "POST", "path": "/loans/{{l2}}/return", "form": {"returned_on": "2026-01-06"}},
+        {"method": "POST", "path": "/loans",
+         "form": {"member_id": "{{member}}", "isbn": "978 0 00 000014 9", "borrowed_on": "2026-01-05"},
+         "capture": {"l3": "loan_id"}},
+        {"method": "POST", "path": "/loans/{{l3}}/return", "form": {"returned_on": "2026-01-06"}},
+        {"method": "POST", "path": "/loans",
+         "form": {"member_id": "{{member}}", "isbn": " 9780000000149 ", "borrowed_on": "2026-01-05"},
+         "capture": {"l4": "loan_id"}},
+        {"method": "POST", "path": "/loans/{{l4}}/return", "form": {"returned_on": "2026-01-06"}}
+      ]
+    }
+  ]
+}
