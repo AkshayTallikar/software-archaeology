@@ -25,5 +25,18 @@ jobs:
         run: python -m pip install -e ".[dev]"
       - name: Test
         run: python -m pytest -q
-      - name: "End to end: excavate, interpret, rebuild, prove"
-        run: python -m archaeology demo --out out
+      - name: "End to end: ACME Billing (Python)"
+        run: python -m archaeology demo --system billing --out out/billing
+      - name: "End to end: Pinecrest Library (Node.js, stateful)"
+        run: python -m archaeology demo --system library --out out/library
+      - name: Upload evidence reports
+        if: always() && matrix.python-version == '3.12'
+        uses: actions/upload-artifact@v4
+        with:
+          name: evidence-reports
+          path: |
+            out/*/report.html
+            out/*/brief.md
+            out/*/equivalence.md
+            out/*/probe.md
+          if-no-files-found: warn
