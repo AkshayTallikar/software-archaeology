@@ -22,11 +22,12 @@ It ships with two legacy systems to excavate, each with wrong documentation and 
 | | ACME Billing | Pinecrest Library |
 | --- | --- | --- |
 | Legacy system | Python WSGI, stateless | Node.js, stateful, multi-step |
-| Recorded exchanges | 3,226 | 1,564 (incl. 18 multi-step scenarios) |
-| `explore`: same findings, adaptive | 484 requests (6.7x fewer) | 3.3x fewer on the explored ranges |
+| Recorded exchanges | 3,234 | 1,821 (incl. 20 multi-step scenarios and 25 interleaved orders) |
+| `explore`: same findings, adaptive | 492 requests (6.6x fewer) | 3.3x fewer on the explored ranges |
 | Documented claims contradicted | 7 of 9 | 10 of 13 |
-| Rebuild (FastAPI, from the brief only) | 3,226 / 3,226 replay | 1,564 / 1,564 replay, 1,172 ids remapped |
-| Differential probe | 3,000 / 3,000 agree | 4,997 / 4,997 agree (incl. 300 fresh scenario runs) |
+| Rebuild (FastAPI, from the brief only) | 3,234 / 3,234 replay | 1,821 / 1,821 replay |
+| Differential probe | 3,000 / 3,000 agree | 5,023 / 5,023 agree (incl. fresh scenario runs and 60 fresh interleavings) |
+| Mutation score: how tightly the recording pins the rebuild | 88.2% (was 76.3%) | 83.8% (was 78.1%) |
 
 ## What it finds
 
@@ -108,7 +109,15 @@ single_status   GET /customer/{id}/tier        only HTTP 200 seen, across 7 requ
 failed_capture  scenario fees-block step 4     13 of 33 runs sent {{loan2}} unbound                    make that earlier step succeed in every run
 ```
 
-The brief puts these under "be careful here", so a coding agent knows which edges are guesses.
+The brief puts these under "be careful here", so a coding agent knows which edges are guesses. `archaeology refine` then closes them itself: it turns each gap into workload additions, records only those, and logs which gaps closed and why the rest could not ([`docs/refine/`](docs/refine)).
+
+## Does the recording actually pin the rebuild?
+
+A rebuild that replays 100% only proves it matches what was recorded. `archaeology mutate` measures how much that is worth: it makes one small change to the rebuild at a time (a constant off by one, a flipped comparison, two guards swapped) and replays the whole recording against each mutant. A mutant that still passes marks a rule the recording never pinned.
+
+The first run left 45 mutants alive. 21 of them pointed at requests nobody had recorded, such as a wrong HTTP method, a repeated parameter, or an invoice without a sku. Recording those requests against the legacy systems showed the rebuilds were wrong in five places. Billing answers 404, not 405, to the wrong method on `/quote`, and a repeated billing parameter takes its last value, not its first. The rebuilds were fixed from the new traces, and the scores rose to 88.2% and 83.8%. Every remaining survivor is equivalent, masked by id or timestamp mapping, or unreachable ([`docs/mutation/`](docs/mutation), [DESIGN §8.4](docs/DESIGN.md)).
+
+Stateful systems also misbehave *between* clients. A workload can declare **interleavings**: lanes of steps from different members, run in chosen or sampled global orders. Pinecrest records four of them (two members after one copy, a fee-blocked member against a free one, the loan limit against a copy someone else holds), and the probe runs 60 fresh orders against both systems. A rebuild mutant that checks availability per member, not per copy, is caught by the interleaved traces alone.
 
 ## Why replay alone is not enough
 
@@ -140,10 +149,10 @@ flowchart LR
 | Stage | Module | What it does |
 | --- | --- | --- |
 | Excavate | `archaeology/recorder`, `archaeology/scenarios.py` | Drives a declarative workload of explicit requests, parameter sweeps and multi-step scenarios (captures, `{{vars}}`, varied values incl. date ranges) against any target. `RecordingMiddleware` wraps a WSGI app. `archaeology proxy` records real traffic to a live system in any language. |
-| Explore | `archaeology/explore.py` | Records the same behaviour with adaptive questions: coarse samples along each integer or date range, then bisection to the exact change point. Its traces work everywhere `record`'s do. |
+| Explore, refine | `archaeology/explore.py`, `archaeology/refine.py` | Records the same behaviour with adaptive questions: coarse samples along each integer or date range, then bisection to the exact change point. Its traces work everywhere `record`'s do. Refine turns each thin-evidence gap into workload additions and records only those. |
 | Interpret | `archaeology/infer` | `catalog` (endpoints, opaque-id path templates, types incl. dates, response shapes), `volatility` (generated ids and timestamps, compared only at like positions so legitimate state changes are not noise), `boundaries` (step changes, clamps, shape changes and exact piecewise-linear rules along int or date inputs, per scenario step), `flows` (which response field feeds which later request), `normalization` (case, whitespace and separator insensitivity), `claims` (documentation tested against evidence, with how many traces support each verdict), `gaps` (thin evidence and the workload addition that would close each gap). |
 | Rebuild | `archaeology/brief.py` | Turns the spec and traces into the agent brief: every rule the evidence shows, contracts, identifier flows and id formats, rule tables, documentation errors, real exchanges on both sides of every boundary, and complete scenario runs. |
-| Prove | `archaeology/replay`, `archaeology/probe.py` | Replays traces in order against an in-process WSGI or ASGI app, a `cmd:` process or a live URL, with an identity map for generated ids and a structural JSON diff that ignores volatile fields. Probes both systems with seeded fresh requests and fresh scenario runs. |
+| Prove | `archaeology/replay`, `archaeology/probe.py` | Replays traces in order against an in-process WSGI or ASGI app, a `cmd:` process or a live URL, with an identity map for generated ids and a structural JSON diff that ignores volatile fields. Probes both systems with seeded fresh requests, scenario runs and interleavings. `archaeology/mutate.py` scores how tightly the recording pins the rebuild. |
 | Report | `archaeology/html_report.py` | One self-contained HTML page: claims vs reality, hidden behaviours with SVG evidence charts drawn from the traces, flows, and replay and probe verdicts. CI publishes it for both systems. |
 
 All stages share one contract, the JSON Lines trace format in [`archaeology/trace.py`](archaeology/trace.py). Design rationale is in [docs/DESIGN.md](docs/DESIGN.md).
@@ -167,6 +176,9 @@ archaeology brief  --spec out/spec.json --traces out/traces.jsonl --out out/brie
 archaeology replay --traces out/traces.jsonl --target modern_app.main:make_app --spec out/spec.json
 archaeology probe  --reference legacy_app.billing:make_app --candidate modern_app.main:make_app \
                    --spec out/spec.json --traces out/traces.jsonl
+archaeology refine --app legacy_app.billing:make_app --workload legacy_app/workload.json --traces out/traces.jsonl \
+                   --out-workload out/workload.refined.json --out-traces out/refined.jsonl --log out/refine.md
+archaeology mutate --rebuild modern_app/main.py --traces out/traces.jsonl --spec out/spec.json --out out/mutation.md --jobs 4
 ```
 
 For a system in another language, start it as a target and add `--workload` to probe its scenarios:

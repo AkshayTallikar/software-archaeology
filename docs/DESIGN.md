@@ -414,7 +414,7 @@ rebuild is correct. Equivalent survivors lower it without a fault, and masked
 survivors show where comparison rules are missing. Closing the rest needs new
 recorded requests, for example `POST /invoice` without a sku, `GET` on an
 unknown loan, or a fee total of 24.75 that exposes the money formatting, not
-more mutants.
+more mutants. Section 8.4 does that.
 
 ### 8.2 Refine (`archaeology/refine.py`)
 
@@ -541,6 +541,48 @@ sides, so it compared equal without testing the omission.
 is not an axis it can bisect, and `full_request_count` counts their steps. `refine`
 leaves gaps found on an interleaving's lanes alone: it varies scenario templates, and
 a lane is not one, so its log says so instead.
+
+### 8.4 Pinning the unpinned (#45)
+
+The 21 unpinned survivors of 8.1 named the requests the recordings lacked. The
+workloads gained them: eight billing requests (an unknown sku with quantity 0,
+invoices with quantity 0 and without a sku, `POST /quote`, `POST` on the tier
+endpoint, `TRACE /quote`, repeated query keys) and three library requests and
+two scenarios (an unknown loan, repeated form and query keys, a run without
+dates, and a fee total of 24.75). The recorder gained `raw_form`, a form body
+sent verbatim, because a dict cannot hold a repeated key.
+
+The new traces showed the rebuilds were wrong in five places, all on behaviour
+nobody had recorded before:
+
+* Billing answers the wrong method on `/quote` and on the tier endpoint with
+  404 `not found`, not 405. `GET /invoice` still answers 405, so the rule is per
+  path.
+* Billing query keys and library form keys take the **last** of a repeated key.
+  Library query keys take the first.
+
+The rebuilds were fixed from those traces alone, and every fix cites them.
+
+| | ACME Billing | Pinecrest Library |
+| --- | --- | --- |
+| Recorded exchanges | 3,234 (was 3,226) | 1,821 (was 1,804) |
+| Replay | 3,234 / 3,234 | 1,821 / 1,821 |
+| Probe | 3,000 / 3,000 | 5,023 / 5,023 |
+| **Mutation score** | 76.3% → **88.2%** (82 / 93) | 78.1% → **83.8%** (88 / 105) |
+
+No unpinned survivor is left. The 28 that remain are equivalent (the `CENT`
+quantum, a fee threshold of 499 cents against fees that step by 25, a page
+default that is clamped to 1, loan defaults that are overwritten, a dead branch
+in `handle_customer_tier`), masked because replay maps rather than compares
+them (id counters, id lengths, timestamps), or unreachable (fees against the
+loan limit, since a fee needs a return and a return drops the active count;
+the framework's error handler, now that every method is routed).
+
+Refine on the new recordings (`docs/refine/`): billing closes 8 of 10 gaps
+with 169 more exchanges. The library closes 2 of 18. Of the 16 it leaves, 14 are
+`failed_capture` on returns of borrows that were refused on purpose, in the
+interleavings and the fee scenarios. One is a gap on an interleaving lane, which
+refine does not vary. One is `GET /books`, which answers 200 to everything.
 
 ## 9. Later milestones
 
