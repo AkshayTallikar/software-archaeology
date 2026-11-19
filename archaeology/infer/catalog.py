@@ -16,6 +16,7 @@ _DIGITS = re.compile(r"[0-9]+")
 # ``facade`` and ``deadbeef`` stay literal path words.
 _OPAQUE_ID = re.compile(r"(?:[A-Za-z]{1,4}[-_])?[0-9a-fA-F]{6,}")
 _HAS_DIGIT = re.compile(r"[0-9]")
+_SEPARATED_DIGITS = re.compile(r"[0-9]+(?:-[0-9]+)*-(?:[0-9]+|[Xx])")
 _UUID = re.compile(r"[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}")
 _ISO_DATE = re.compile(r"[0-9]{4}-[0-9]{2}-[0-9]{2}")
 _FLOAT = re.compile(r"-?(\d+\.\d*|\.\d+)([eE][-+]?\d+)?|-?\d+[eE][-+]?\d+")
@@ -25,8 +26,14 @@ TEXT_EXAMPLE_LIMIT = 3
 
 
 def _is_opaque_id(segment: str) -> bool:
-    """True for a segment that looks generated: a UUID, or a digit-bearing hex token."""
+    """True for a segment that looks generated or catalogue-like.
+
+    That is a UUID, a digit-bearing hex token, or a hyphen-separated run of at
+    least six digits (an ISBN written as ``978-0-00-000001-9``).
+    """
     if _UUID.fullmatch(segment):
+        return True
+    if _SEPARATED_DIGITS.fullmatch(segment) and sum(c.isdigit() for c in segment) >= 6:
         return True
     return _OPAQUE_ID.fullmatch(segment) is not None and _HAS_DIGIT.search(segment) is not None
 

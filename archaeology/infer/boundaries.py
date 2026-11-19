@@ -456,7 +456,45 @@ def _dedupe(findings: list[dict[str, Any]]) -> list[dict[str, Any]]:
         else:
             finding["contexts"] = 1
             kept[signature] = finding
-    return list(kept.values())
+    return _merge_steps(list(kept.values()))
+
+
+def _merge_steps(findings: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Report a scenario result once when several steps of one run show it.
+
+    A double return, for example, answers the same fee at step 2 and step 3.
+    The kept finding gets ``steps`` (every step, ascending) and a label that
+    names them all; ``step`` stays the first one.
+    """
+    merged: dict[tuple[Any, ...], dict[str, Any]] = {}
+    order: list[dict[str, Any]] = []
+    for finding in findings:
+        if finding.get("scenario") is None:
+            order.append(finding)
+            continue
+        signature = (
+            finding["scenario"],
+            finding["endpoint"],
+            finding["param"],
+            finding["field"],
+            finding["kind"],
+            json.dumps(_payload(finding), sort_keys=True),
+        )
+        first = merged.get(signature)
+        if first is None:
+            finding["steps"] = [finding["step"]]
+            merged[signature] = finding
+            order.append(finding)
+        else:
+            first["steps"].append(finding["step"])
+    for finding in merged.values():
+        steps = sorted(finding["steps"])
+        finding["steps"] = steps
+        if len(steps) > 1:
+            old = f"{finding['scenario']} step {steps[0]} ("
+            new = f"{finding['scenario']} steps {', '.join(str(s) for s in steps)} ("
+            finding["description"] = finding["description"].replace(old, new, 1)
+    return order
 
 
 def detect_boundaries(

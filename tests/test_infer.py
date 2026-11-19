@@ -70,6 +70,13 @@ def test_path_template_and_endpoint_key() -> None:
     assert endpoint_key(make("POST", "/customer/7/tier")) == "POST /customer/{id}/tier"
 
 
+def test_path_template_hyphenated_catalogue_numbers() -> None:
+    assert path_template("/books/978-0-00-000001-9") == "/books/{id}"
+    assert path_template("/books/0-306-40615-X") == "/books/{id}"
+    assert path_template("/v1-2/items") == "/v1-2/items"
+    assert path_template("/sign-in") == "/sign-in"
+
+
 def test_value_and_json_types() -> None:
     assert [value_type(v) for v in ["", "42", "-3", "1.5", "1e3", "abc"]] == [
         "empty", "int", "int", "float", "float", "str",
@@ -475,7 +482,7 @@ def test_scenario_step_shape_changes_at_a_date_and_stays_per_step() -> None:
     )
 
 
-def test_scenario_findings_on_two_steps_stay_distinct() -> None:
+def test_identical_scenario_findings_on_two_steps_are_reported_once() -> None:
     traces: list[Trace] = []
     for run, day in enumerate(days("2026-01-15", "2026-02-20")):
         status = 201 if day <= "2026-02-01" else 403
@@ -483,8 +490,20 @@ def test_scenario_findings_on_two_steps_stay_distinct() -> None:
         # A second, identical return at step 3 of the same scenario.
         extra = loan_run(run, day, status=status)[2]
         traces.append(in_scenario(extra, "late-return", run, 3, {"returned_on": day}))
-    shapes = sorted((f["step"], f["changes_at"][0]) for f in detect_boundaries(traces) if f["kind"] == "shape" and f.get("scenario"))
-    assert shapes == [(2, "2026-02-02"), (3, "2026-02-02")]
+    shapes = [f for f in detect_boundaries(traces) if f["kind"] == "shape" and f.get("scenario")]
+    assert [(f["step"], f["steps"], f["changes_at"][0]) for f in shapes] == [(2, [2, 3], "2026-02-02")]
+    assert shapes[0]["description"].startswith("late-return steps 2, 3 (POST /loans/{id}/return)")
+
+
+def test_scenario_findings_that_differ_between_steps_stay_distinct() -> None:
+    traces: list[Trace] = []
+    for run, day in enumerate(days("2026-01-15", "2026-02-20")):
+        traces += loan_run(run, day, status=201 if day <= "2026-02-01" else 403)
+        # Step 3 changes on a different day from step 2.
+        extra = loan_run(run, day, status=201 if day <= "2026-02-10" else 403)[2]
+        traces.append(in_scenario(extra, "late-return", run, 3, {"returned_on": day}))
+    shapes = sorted((f["step"], f["steps"], f["changes_at"][0]) for f in detect_boundaries(traces) if f["kind"] == "shape" and f.get("scenario"))
+    assert shapes == [(2, [2], "2026-02-02"), (3, [3], "2026-02-11")]
 
 
 def test_scenario_sweeps_do_not_leak_into_request_parameter_sweeps() -> None:
