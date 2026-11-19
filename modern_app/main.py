@@ -183,10 +183,13 @@ def first_value(params: Params, key: str) -> str | None:
     """First value for a key, or None when the key is absent.
 
     Blank values are kept (``keep_blank_values``), so ``sku=`` is distinct
-    from a missing ``sku``. Repeated keys resolve to their first value.
+    from a missing ``sku``. Repeated keys resolve to their last value.
+
+    Evidence: GET /quote?sku=GADGET&sku=WIDGET&qty=2&qty=5 answers for WIDGET
+    and qty 5 (recorded traffic), so the last occurrence of a key wins.
     """
     values = params.get(key)
-    return values[0] if values else None
+    return values[-1] if values else None
 
 
 def parse_qty(raw: str | None) -> int:
@@ -358,21 +361,24 @@ def handle_customer_tier(customer_id: str) -> Response:
 
 METHOD_NOT_ALLOWED = "method not allowed"
 NOT_FOUND = "not found"
-ROUTED_METHODS: Final = ["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"]
+ROUTED_METHODS: Final = ["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS", "TRACE"]
 
 
 async def route(request: Request) -> Response:
     """Dispatch every request by path and method, with no framework 404/405.
 
     Evidence: GET /invoice -> 405 text/plain 'method not allowed'. Unknown
-    paths (GET /nope) -> 404 text/plain 'not found'.
+    paths (GET /nope) -> 404 text/plain 'not found'. The wrong method on
+    /quote (POST /quote, TRACE /quote) and on the tier endpoint
+    (POST /customer/1001/tier) answers 404 text/plain 'not found', not 405:
+    the legacy system does not report 405 for those two paths.
     """
     path = request.url.path
     method = request.method
 
     if path == "/quote":
         if method != "GET":
-            return text_response(METHOD_NOT_ALLOWED, 405)
+            return text_response(NOT_FOUND, 404)
         return handle_quote(parse_qs(request.url.query, keep_blank_values=True))
 
     if path == "/invoice":
@@ -391,7 +397,7 @@ async def route(request: Request) -> Response:
         if not customer_id.isdigit():
             return text_response(NOT_FOUND, 404)
         if method != "GET":
-            return text_response(METHOD_NOT_ALLOWED, 405)
+            return text_response(NOT_FOUND, 404)
         return handle_customer_tier(customer_id)
 
     return text_response(NOT_FOUND, 404)

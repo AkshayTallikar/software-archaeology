@@ -1,6 +1,6 @@
 # Refinement log
 
-The recording held 3226 exchanges and 9 evidence gaps. Refinement ran 1 round(s), recorded 78 additional exchanges, acted on 8 gap(s) and left 2 gap(s).
+The recording held 3234 exchanges and 10 evidence gaps. Refinement ran 1 round(s), recorded 169 additional exchanges, acted on 9 gap(s) and left 2 gap(s).
 
 Closed means the gap no longer appears after its additions. Explained means the additions ran and the gap remains; the outcome quotes what they saw.
 
@@ -8,7 +8,7 @@ Closed means the gap no longer appears after its additions. Explained means the 
 
 | Kind | Before | After |
 |---|---:|---:|
-| inexact_change | 7 | 0 |
+| inexact_change | 8 | 0 |
 | few_values | 1 | 0 |
 | single_status | 1 | 2 |
 | failed_capture | 0 | 0 |
@@ -23,7 +23,8 @@ Closed means the gap no longer appears after its additions. Explained means the 
 | inexact_change | GET /quote (sku=GADGET), qty | bulk_discount_pct changes somewhere between sampled 98 and 105; 6 inputs between them were never sent | sweep of qty at 99, 100, 101, 102 and more in 1 context(s) | 6 | closed; its requests drew 200 x6 |
 | inexact_change | GET /quote (sku=GADGET), qty | bulk_discount_pct changes somewhere between sampled 497 and 504; 6 inputs between them were never sent | sweep of qty at 498, 499, 500, 501 and more in 1 context(s) | 6 | closed; its requests drew 200 x6 |
 | inexact_change | GET /quote (sku=GADGET), qty | subtotal changes somewhere between sampled 994 and 1001; 6 inputs between them were never sent | sweep of qty at 995, 996, 997, 998 and more in 1 context(s) | 6 | closed; its requests drew 200 x6 |
-| inexact_change | GET /quote (sku=GADGET), qty | shape changes somewhere between sampled 0 and 3; 2 inputs between them were never sent | sweep of qty at 1, 2 in 1 context(s) | 2 | closed; its requests drew 200 x2 |
+| inexact_change | GET /quote (sku=GADGET), qty | shape changes somewhere between sampled 0 and 3; 2 inputs between them were never sent | sweep of qty at 1, 2 in 2 context(s) | 4 | closed; its requests drew 200 x4 |
+| inexact_change | POST /invoice (customer_id=1001, sku=WIDGET), qty | shape changes somewhere between sampled 0 and 90; 89 inputs between them were never sent | sweep of qty at 1, 2, 3, 4 and more in 1 context(s) | 89 | closed; its requests drew 200 x89 |
 | few_values | POST /invoice parameter coupon | only 'SAVE10', 'VIP25' seen, across 436 requests | one request with coupon set to 'SUMMER21' | 1 | closed; its requests drew 200 |
 | single_status | GET /customer/{id}/tier | only HTTP 200 seen, across 7 requests | unknown customer_id 8942, 1315; invalid customer_id abc | 3 | explained: only HTTP 200 seen, across 9 requests; its requests drew 200 x2, 404 |
 

@@ -46,6 +46,10 @@ def request_from_spec(spec: dict[str, Any]) -> Request:
     if "form" in spec:
         body = urlencode(spec["form"])
         headers = {"Content-Type": FORM_CONTENT_TYPE}
+    if "raw_form" in spec:
+        # A form body sent verbatim, for repeated keys that a dict cannot hold.
+        body = spec["raw_form"]
+        headers = {"Content-Type": FORM_CONTENT_TYPE}
     if "raw_query" in spec:
         query_string = spec["raw_query"]
     else:

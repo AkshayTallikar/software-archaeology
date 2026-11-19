@@ -170,6 +170,66 @@
         "sku": "GADGET",
         "qty": "abc"
       }
+    },
+    {
+      "method": "GET",
+      "path": "/quote",
+      "query": {
+        "sku": "NOPE",
+        "qty": "0"
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/invoice",
+      "form": {
+        "customer_id": "1001",
+        "sku": "NOPE",
+        "qty": "0"
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/invoice",
+      "form": {
+        "customer_id": "1001",
+        "sku": "WIDGET",
+        "qty": "0"
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/invoice",
+      "form": {
+        "customer_id": "1001",
+        "qty": "1"
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/quote",
+      "query": {
+        "sku": "WIDGET",
+        "qty": "1"
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/customer/1001/tier",
+      "query": {}
+    },
+    {
+      "method": "TRACE",
+      "path": "/quote",
+      "query": {
+        "sku": "WIDGET",
+        "qty": "1"
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/quote",
+      "raw_query": "sku=GADGET&sku=WIDGET&qty=2&qty=5"
     }
   ],
   "sweeps": [
