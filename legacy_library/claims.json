@@ -1,0 +1,80 @@
+[
+  {
+    "id": "L1",
+    "text": "Creating a member returns HTTP 200.",
+    "request": {"method": "POST", "path": "/members", "form": {"name": "Ada", "tier": "standard"}},
+    "expect": {"status": 200}
+  },
+  {
+    "id": "L2",
+    "text": "Unknown membership tiers are rejected with 400 INVALID_TIER.",
+    "request": {"method": "POST", "path": "/members", "form": {"name": "Ada", "tier": "gold"}},
+    "expect": {"status": 400}
+  },
+  {
+    "id": "L3",
+    "text": "per_page may be up to 100.",
+    "request": {"method": "GET", "path": "/books", "query": {"per_page": "80"}},
+    "expect": {"json_subset": {"per_page": 80}}
+  },
+  {
+    "id": "L4",
+    "text": "Requesting a page past the end returns 404.",
+    "request": {"method": "GET", "path": "/books", "query": {"page": "8", "per_page": "10"}},
+    "expect": {"status": 404}
+  },
+  {
+    "id": "L5",
+    "text": "All loans are due 14 days after borrowing.",
+    "request": {"scenario": "premium-late-return", "step": 1},
+    "expect": {"json_subset": {"due_on": "2026-01-19"}}
+  },
+  {
+    "id": "L6",
+    "text": "A member may have at most 3 books on loan; a 4th loan is refused with 409 LOAN_LIMIT.",
+    "request": {"scenario": "loan-limit", "step": 4, "vars": {"tier": "standard"}},
+    "expect": {"status": 409}
+  },
+  {
+    "id": "L7",
+    "text": "Late returns cost 0.50 per day from the first day late.",
+    "request": {"scenario": "late-return", "step": 2, "vars": {"returned_on": "2026-01-21"}},
+    "expect": {"json_subset": {"fee": "1.00"}}
+  },
+  {
+    "id": "L8",
+    "text": "There is no maximum late fee.",
+    "request": {"scenario": "late-return", "step": 2, "vars": {"returned_on": "2026-03-15"}},
+    "expect": {"json_subset": {"fee": "27.50"}}
+  },
+  {
+    "id": "L9",
+    "text": "Returning a loan twice returns 409 ALREADY_RETURNED.",
+    "request": {"scenario": "late-return", "step": 3, "vars": {"returned_on": "2026-01-25"}},
+    "expect": {"status": 409}
+  },
+  {
+    "id": "L10",
+    "text": "Members with unpaid fees cannot borrow.",
+    "request": {"scenario": "fees-block", "step": 3, "vars": {"returned_on": "2026-01-22"}},
+    "expect": {"status": 403}
+  },
+  {
+    "id": "L11",
+    "text": "ISBNs may be written with hyphens.",
+    "request": {"scenario": "hyphenated-isbn", "step": 3},
+    "expect": {"status": 201}
+  },
+  {
+    "id": "L12",
+    "text": "Borrowing a book that is on loan returns 409 BOOK_UNAVAILABLE.",
+    "request": {"scenario": "unavailable", "step": 3},
+    "expect": {"json_subset": {"error": "BOOK_UNAVAILABLE"}}
+  },
+  {
+    "id": "L13",
+    "text": "Unknown members return 404 MEMBER_NOT_FOUND.",
+    "request": {"method": "GET", "path": "/members/m_00000000", "query": {}},
+    "expect": {"json_subset": {"error": "MEMBER_NOT_FOUND"}}
+  }
+]

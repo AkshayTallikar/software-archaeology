@@ -18,7 +18,7 @@ dev = ["pytest>=8", "fastapi>=0.110"]
 archaeology = "archaeology.cli:main"
 
 [tool.setuptools.packages.find]
-include = ["archaeology*", "legacy_app*", "modern_app*"]
+include = ["archaeology*", "legacy_app*", "legacy_library*", "modern_app*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
