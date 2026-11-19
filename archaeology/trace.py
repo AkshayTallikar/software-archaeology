@@ -21,7 +21,8 @@ Shape of one line::
         "status": 200,
         "headers": {"content-type": "application/json"},
         "body": "{\\"sku\\": \\"WIDGET\\", ...}"
-      }
+      },
+      "scenario": null
     }
 
 ``params`` is the analysis-friendly view of the request inputs: query string
@@ -29,6 +30,12 @@ parameters merged with form-encoded body fields (body wins on conflict, last
 value wins for repeated keys). Values are always strings, exactly as sent.
 The raw ``query_string`` and ``body`` are kept so a trace can be replayed
 byte-for-byte.
+
+``scenario`` is ``null`` for a standalone exchange. An exchange recorded as
+one step of a multi-step scenario carries ``{"name": "late-return", "run": 7,
+"step": 2, "vars": {"returned_on": "2026-02-01"}}``: the scenario's name, the
+global index of the run it belongs to, the step's position in that run (both
+from 0), and the values the run was varied by.
 """
 
 from __future__ import annotations
@@ -110,6 +117,7 @@ class Trace:
     ts: str
     request: Request
     response: Response
+    scenario: dict[str, Any] | None = None
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -121,6 +129,7 @@ class Trace:
             ts=data.get("ts", ""),
             request=Request(**data["request"]),
             response=Response(**data["response"]),
+            scenario=data.get("scenario"),
         )
 
 

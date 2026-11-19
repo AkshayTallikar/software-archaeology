@@ -4,8 +4,10 @@ from .exerciser import (
     expand_sweep,
     expand_workload,
     exercise,
+    exercise_target,
     load_workload,
     record,
+    record_target,
     request_from_spec,
 )
 from .middleware import JsonlSink, ListSink, RecordingMiddleware
@@ -17,7 +19,9 @@ __all__ = [
     "expand_sweep",
     "expand_workload",
     "exercise",
+    "exercise_target",
     "load_workload",
     "record",
+    "record_target",
     "request_from_spec",
 ]
