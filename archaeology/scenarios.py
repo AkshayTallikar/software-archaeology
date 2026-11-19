@@ -25,6 +25,10 @@ captured it failed) is left as the literal placeholder, so the request is
 still sent and the difference is visible in the traces. The exception is a
 varied variable whose value is ``null`` in a run: a form or query value that is
 exactly that variable's placeholder is left out of the request altogether.
+
+Several scenarios can also run interleaved in one global order (a workload's
+``interleave`` section, with ``lanes``, ``vars``, and ``orders`` or ``sample``).
+That is documented in :mod:`archaeology.interleave`.
 """
 
 from __future__ import annotations

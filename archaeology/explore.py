@@ -78,6 +78,7 @@ from fractions import Fraction
 from itertools import product
 from typing import Any
 
+from .interleave import expand_interleavings, interleaving_request_count, run_interleaved
 from .infer.catalog import _is_opaque_id, is_iso_date, json_object
 from .recorder.exerciser import expand_sweep, expand_workload, request_from_spec
 from .scenarios import ScenarioRun, expand_scenarios, run_scenario, vary_values
@@ -385,7 +386,7 @@ def full_request_count(workload: dict[str, Any]) -> int:
     """How many exchanges ``record`` sends for a workload (computed, not sent)."""
     stateless = len(expand_workload(workload))
     steps = sum(len(run.steps) for run in expand_scenarios(workload))
-    return stateless + steps
+    return stateless + steps + interleaving_request_count(workload)
 
 
 def _request_key(request: Request) -> RequestKey:
@@ -453,7 +454,8 @@ class _Explorer:
         self._volatile: dict[tuple[str, ...], frozenset[str]] = {}
         self._runs = expand_scenarios(workload)
         self._run_by_key = {(r.name, tuple(sorted(r.bindings.items()))): r for r in self._runs}
-        self._next_run = len(self._runs)
+        self._interleavings = expand_interleavings(workload, first_run=len(self._runs))
+        self._next_run = len(self._runs) + sum(len(run.lanes) for run in self._interleavings)
 
     def run(self) -> ExploreResult:
         for spec in self.workload.get("requests", []):
@@ -473,6 +475,8 @@ class _Explorer:
         for run in self._runs:
             if run.name not in adaptive_names:
                 run_scenario(run, self.rec.target, on_exchange=self.rec.record)
+        for interleaved in self._interleavings:
+            run_interleaved(interleaved, self.rec.target, on_exchange=self.rec.record)
         exhaustive = len(self.rec.traces)
         for sweep in adaptive_sweeps:
             self._explore_sweep(sweep)

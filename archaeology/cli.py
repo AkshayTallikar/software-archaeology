@@ -17,7 +17,8 @@ from . import mutate as mutation
 from .html_report import render_html_report
 from .infer.claims import load_claims
 from .infer.spec import infer_spec, load_spec, render_report, save_spec, volatile_paths_for
-from .probe import generate_requests, merge_reports, probe, probe_scenarios
+from .interleave import sample_interleavings
+from .probe import generate_requests, merge_reports, probe, probe_interleavings, probe_scenarios
 from .probe import render_markdown as render_probe
 from .probe import to_dict as probe_to_dict
 from .recorder import JsonlSink, RecordingProxy, load_workload, record, record_target
@@ -222,22 +223,26 @@ def cmd_replay(args: argparse.Namespace) -> int:
 def _run_probe(reference: str, candidate: str, spec_path: str, traces_path: str,
                count: int, seed: int, report_path: str | None,
                workload_path: str | None = None, scenario_count: int = 0,
-               json_path: str | None = None) -> int:
-    """Probe two systems with fresh requests and, given a workload, fresh scenario runs.
+               json_path: str | None = None, interleave_count: int = 0) -> int:
+    """Probe two systems with fresh requests and, given a workload, fresh scenario runs and interleavings.
 
-    Only stateless traces seed the fresh requests. Scenario runs are sampled
-    from ``workload_path`` and probed on the same two targets; their steps are
-    merged into the same report.
+    Only stateless traces seed the fresh requests. Scenario runs and
+    interleavings are sampled from ``workload_path`` and probed on the same two
+    targets; their steps are merged into the same report.
     """
     spec = load_spec(spec_path)
     traces = read_traces(traces_path)
     requests = generate_requests(spec, [t for t in traces if t.scenario is None], count, seed=seed)
-    runs = sample_scenarios(load_workload(workload_path), scenario_count, seed=seed) if workload_path else []
+    workload = load_workload(workload_path) if workload_path else {}
+    runs = sample_scenarios(workload, scenario_count, seed=seed) if workload_path else []
+    interleavings = sample_interleavings(workload, interleave_count, seed=seed) if workload_path else []
     targets = [load_target(reference), load_target(candidate)]
     try:
         report = probe(targets[0], targets[1], requests, spec)
         if runs:
             report = merge_reports(report, probe_scenarios(targets[0], targets[1], runs, spec))
+        if interleavings:
+            report = merge_reports(report, probe_interleavings(targets[0], targets[1], interleavings, spec))
     finally:
         for target in targets:
             close = getattr(target, "close", None)
@@ -255,7 +260,7 @@ def _run_probe(reference: str, candidate: str, spec_path: str, traces_path: str,
 def cmd_probe(args: argparse.Namespace) -> int:
     return _run_probe(args.reference, args.candidate, args.spec, args.traces, args.count, args.seed,
                       args.report, workload_path=args.workload, scenario_count=args.scenario_count,
-                      json_path=args.json)
+                      json_path=args.json, interleave_count=args.interleave_count)
 
 
 def cmd_mutate(args: argparse.Namespace) -> int:
@@ -330,12 +335,16 @@ def cmd_demo(args: argparse.Namespace) -> int:
     replay_status = _run_replay(str(traces), target, str(spec), 1.0,
                                 str(out / "equivalence.md"), str(out / "equivalence.json"))
     scenarios = args.scenario_count if system.stateful else 0
+    interleavings = args.interleave_count if system.stateful else 0
     extra = f" and {scenarios} fresh scenario runs" if scenarios else ""
+    if interleavings:
+        extra += f" and {interleavings} fresh interleavings"
     print(f"\n== 5. Probe: {args.probe_count} fresh requests{extra} the recording never contained ==")
     probe_status = _run_probe(system.reference, target, str(spec), str(traces),
                               args.probe_count, 0, str(out / "probe.md"),
                               workload_path=system.workload if scenarios else None,
-                              scenario_count=scenarios, json_path=str(out / "probe.json"))
+                              scenario_count=scenarios, json_path=str(out / "probe.json"),
+                              interleave_count=interleavings)
     print("\n== 6. Report: writing the evidence report ==")
     cmd_report(argparse.Namespace(spec=str(spec), traces=str(traces), replay=str(out / "equivalence.json"),
                                   probe=str(out / "probe.json"), title=system.title,
@@ -438,6 +447,8 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--workload", help="workload with scenarios to probe as fresh multi-step runs")
     p.add_argument("--scenario-count", type=int, default=300,
                    help="how many scenario runs to sample from --workload")
+    p.add_argument("--interleave-count", type=int, default=0,
+                   help="how many fresh interleavings (random global orders) to sample from --workload")
     p.add_argument("--report", help="write the markdown report here")
     p.add_argument("--json", help="write the JSON report here")
     p.set_defaults(func=cmd_probe)
@@ -459,6 +470,8 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--probe-count", type=int, default=3000)
     p.add_argument("--scenario-count", type=int, default=300,
                    help="fresh scenario runs to probe on a stateful system")
+    p.add_argument("--interleave-count", type=int, default=60,
+                   help="fresh interleavings (random global orders) to probe on a stateful system")
     p.set_defaults(func=cmd_demo)
     return parser
 

@@ -48,6 +48,7 @@ from .explore import full_request_count
 from .infer.catalog import endpoint_key
 from .infer.spec import infer_spec
 from .recorder.exerciser import expand_sweep, expand_workload, request_from_spec
+from .interleave import expand_interleavings, run_interleaved
 from .scenarios import expand_scenarios, run_scenario, scenario_family
 from .trace import Request, Response, Trace
 
@@ -369,6 +370,10 @@ def addition_for_gap(gap: dict[str, Any], ctx: Context) -> tuple[Addition | None
     kind = gap["kind"]
     if kind in NOT_ACTED_ON:
         return None, NOT_ACTED_ON[kind]
+    scenario = (gap.get("data") or {}).get("scenario")
+    templates = {t["name"] for t in ctx.workload.get("scenarios", [])}
+    if scenario is not None and scenario not in templates:
+        return None, f"{scenario} is a lane of an interleaving, not a scenario template refine can vary"
     addition, text = _GENERATORS[kind](gap.get("data") or {}, ctx)
     if addition_size(addition) == 0:
         return None, "nothing to add: no unsampled input, id, parameter or value to vary"
@@ -388,8 +393,11 @@ def replay_workload(target: Target, workload: dict[str, Any]) -> None:
     """Send a workload's exchanges without recording them, to bring a target to its recording's state."""
     for request in expand_workload(workload):
         target(request)
-    for run in expand_scenarios(workload):
+    runs = expand_scenarios(workload)
+    for run in runs:
         run_scenario(run, target)
+    for interleaved in expand_interleavings(workload, first_run=len(runs)):
+        run_interleaved(interleaved, target)
 
 
 def record_addition(addition: Addition, target: Target, traces: Sequence[Trace], prefix: str) -> list[Trace]:

@@ -16,6 +16,8 @@ Stateful systems are probed with scenario runs (:func:`probe_scenarios`).
 Each run executes its steps on both systems in lockstep, each side with its
 own captured identifiers, and an :class:`~archaeology.replay.IdentityMap`
 translates the reference's identifiers before responses are compared.
+Interleavings between clients are probed the same way, in fresh random
+global orders (:func:`probe_interleavings`).
 """
 
 from __future__ import annotations
@@ -29,6 +31,7 @@ from urllib.parse import urlencode
 from .infer.spec import volatile_paths_for
 from .replay.compare import compare
 from .replay.identity import IdentityMap
+from .interleave import InterleavedRun
 from .scenarios import ScenarioRun, apply_captures, render_step
 from .trace import FORM_CONTENT_TYPE, Request, Response, Trace
 
@@ -127,6 +130,7 @@ class Divergence:
     differences: list[str]
     scenario: dict[str, Any] | None = None
     path_template: str | None = None
+    order: str | None = None  # the global order of an interleaving, as step ids: "a0 b0 a1"
 
 
 @dataclass
@@ -190,8 +194,8 @@ def probe_scenarios(
         reference_vars = dict(run.bindings)
         candidate_vars = dict(run.bindings)
         for index, step in enumerate(run.steps):
-            reference_request = render_step(step, reference_vars)
-            candidate_request = render_step(step, candidate_vars)
+            reference_request = render_step(step, reference_vars, run.omitted)
+            candidate_request = render_step(step, candidate_vars, run.omitted)
             reference_response = reference(reference_request)
             candidate_response = candidate(candidate_request)
             apply_captures(step, reference_response, reference_vars)
@@ -215,6 +219,51 @@ def probe_scenarios(
     return report
 
 
+def probe_interleavings(
+    reference: Target,
+    candidate: Target,
+    runs: Iterable[InterleavedRun],
+    spec: dict[str, Any] | None = None,
+) -> ProbeReport:
+    """Run each interleaving on both systems in lockstep, in its global order, and compare every step.
+
+    Like :func:`probe_scenarios`, but the steps of all lanes share one identity
+    map per run, and each lane keeps its own variables and captures on each side.
+    """
+    report = ProbeReport()
+    for run in runs:
+        identity = IdentityMap()
+        reference_vars = {name: dict(lane.bindings) for name, lane in run.lanes.items()}
+        candidate_vars = {name: dict(lane.bindings) for name, lane in run.lanes.items()}
+        for position, (lane_name, index) in enumerate(run.order):
+            lane = run.lanes[lane_name]
+            step = lane.steps[index]
+            reference_request = render_step(step, reference_vars[lane_name], lane.omitted)
+            candidate_request = render_step(step, candidate_vars[lane_name], lane.omitted)
+            reference_response = reference(reference_request)
+            candidate_response = candidate(candidate_request)
+            apply_captures(step, reference_response, reference_vars[lane_name])
+            apply_captures(step, candidate_response, candidate_vars[lane_name])
+
+            ignore = volatile_paths_for(spec, reference_request) if spec else set()
+            expected = identity.rewrite_expected(reference_response)
+            differences = compare(expected, candidate_response, ignore)
+            report.total += 1
+            report.scenario_steps += 1
+            if differences:
+                report.divergences.append(
+                    Divergence(
+                        reference_request,
+                        differences,
+                        scenario=run.tag(position),
+                        path_template=step["path"],
+                        order=run.order_label(),
+                    )
+                )
+            identity.learn(reference_response, candidate_response, ignore)
+    return report
+
+
 def _scenario_label(scenario: dict[str, Any]) -> str:
     varied = ", ".join(f"{k}={v}" for k, v in sorted(scenario.get("vars", {}).items()))
     label = f"`{scenario['name']}` step {scenario['step']}"
@@ -227,7 +276,8 @@ def _divergence_line(divergence: Divergence) -> str:
     if divergence.scenario is None:
         return f"- `{request.method} {request.path}` `{request.query_string or request.body}`: {differences}"
     shown = _PLACEHOLDER.sub("{...}", divergence.path_template or request.path)
-    return f"- {_scenario_label(divergence.scenario)}: `{request.method} {shown}`: {differences}"
+    where = f" in interleaving `{divergence.order}`" if divergence.order else ""
+    return f"- {_scenario_label(divergence.scenario)}{where}: `{request.method} {shown}`: {differences}"
 
 
 def render_markdown(report: ProbeReport, max_items: int = 20) -> str:
@@ -260,6 +310,7 @@ def to_dict(report: ProbeReport) -> dict[str, Any]:
                 "request": f"{d.request.method} {d.request.path}",
                 "query_or_body": d.request.query_string or d.request.body,
                 "scenario": d.scenario,
+                "order": d.order,
                 "differences": list(d.differences),
             }
             for d in report.divergences
