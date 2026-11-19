@@ -57,7 +57,7 @@ def test_expansion_numbers_runs_and_binds_variables():
     assert [r.bindings for r in runs] == [
         {"qty": "1"}, {"qty": "1", "coupon": "SAVE10"}, {"qty": "2"}, {"qty": "2", "coupon": "SAVE10"},
     ]
-    assert runs[0].tag(1) == {"name": "invoice-then-quote", "run": 10, "step": 1}
+    assert runs[0].tag(1) == {"name": "invoice-then-quote", "run": 10, "step": 1, "vars": {"qty": "1"}}
 
 
 def test_substitute_leaves_unbound_placeholders_visible():
@@ -89,7 +89,10 @@ def test_run_scenario_captures_and_reuses_values():
     assert exchanges[1][0].params["ref"] == invoice["invoice_id"]
     # an unbound coupon is sent as the literal placeholder, so the difference stays visible
     assert exchanges[0][0].params["coupon"] == "{{coupon}}"
-    assert tags == [{"name": "s", "run": 0, "step": 0}, {"name": "s", "run": 0, "step": 1}]
+    assert tags == [
+        {"name": "s", "run": 0, "step": 0, "vars": {"qty": "3"}},
+        {"name": "s", "run": 0, "step": 1, "vars": {"qty": "3"}},
+    ]
 
 
 def test_exercise_tags_scenario_traces_and_numbers_after_plain_requests():
@@ -99,8 +102,10 @@ def test_exercise_tags_scenario_traces_and_numbers_after_plain_requests():
     traces = list(sink)
     assert traces[0].scenario is None
     assert [t.id for t in traces[:3]] == ["t-000001", "t-000002", "t-000003"]
-    assert traces[1].scenario == {"name": "invoice-then-quote", "run": 0, "step": 0}
-    assert traces[-1].scenario == {"name": "invoice-then-quote", "run": 3, "step": 1}
+    assert traces[1].scenario == {"name": "invoice-then-quote", "run": 0, "step": 0, "vars": {"qty": "1"}}
+    assert traces[-1].scenario == {
+        "name": "invoice-then-quote", "run": 3, "step": 1, "vars": {"qty": "2", "coupon": "SAVE10"},
+    }
     round_tripped = Trace.from_dict(json.loads(json.dumps(traces[1].to_dict())))
     assert round_tripped == traces[1]
 

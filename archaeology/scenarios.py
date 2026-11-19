@@ -51,8 +51,13 @@ class ScenarioRun:
     steps: list[dict[str, Any]] = field(default_factory=list)
 
     def tag(self, step: int) -> dict[str, Any]:
-        """The ``Trace.scenario`` tag for one step of this run."""
-        return {"name": self.name, "run": self.run, "step": step}
+        """The ``Trace.scenario`` tag for one step of this run.
+
+        ``vars`` holds the run's varied values, so later stages can analyse how
+        any step's response depends on them (a fee two steps after the date
+        that caused it, for example).
+        """
+        return {"name": self.name, "run": self.run, "step": step, "vars": dict(self.bindings)}
 
 
 # --- variable values -------------------------------------------------------

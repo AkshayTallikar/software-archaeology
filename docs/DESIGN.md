@@ -169,8 +169,10 @@ path and later steps use it as `{{name}}` in their path, query or form. A
 scenario may `vary` parameters (`values`, `range`, or `date_range` for
 ISO dates) and is then run once per combination, each run with its own
 captures. Every trace a scenario produces is tagged
-`{"name", "run", "step"}`, so later stages know which exchanges belong
-together and in what order. Stateless traces carry `scenario: null`.
+`{"name", "run", "step", "vars"}`, so later stages know which exchanges belong
+together, in what order, and which varied values the run used: a step's
+response can then be analysed against a value set two steps earlier.
+Stateless traces carry `scenario: null`.
 
 ### 6.3 Excavating any system
 

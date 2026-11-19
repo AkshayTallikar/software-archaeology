@@ -33,8 +33,9 @@ byte-for-byte.
 
 ``scenario`` is ``null`` for a standalone exchange. An exchange recorded as
 one step of a multi-step scenario carries ``{"name": "late-return", "run": 7,
-"step": 2}``: the scenario's name, the global index of the run it belongs to,
-and the step's position in that run (both from 0).
+"step": 2, "vars": {"returned_on": "2026-02-01"}}``: the scenario's name, the
+global index of the run it belongs to, the step's position in that run (both
+from 0), and the values the run was varied by.
 """
 
 from __future__ import annotations
