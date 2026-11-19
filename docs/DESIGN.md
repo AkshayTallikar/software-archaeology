@@ -537,6 +537,11 @@ probe also now passes each run's omitted (null) variables to the step renderer, 
 replay does. Before this, a null in `vary` was sent as a literal placeholder on both
 sides, so it compared equal without testing the omission.
 
+`explore` sends every interleaving as recorded, in the exhaustive part, since an order
+is not an axis it can bisect, and `full_request_count` counts their steps. `refine`
+leaves gaps found on an interleaving's lanes alone: it varies scenario templates, and
+a lane is not one, so its log says so instead.
+
 ## 9. Later milestones
 
 * Targeted probing: generate requests to test UNOBSERVED claims. Boundary

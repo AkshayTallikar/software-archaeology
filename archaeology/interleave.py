@@ -238,6 +238,11 @@ def expand_interleavings(workload: dict[str, Any], first_run: int = 0) -> list[I
     return runs
 
 
+def interleaving_request_count(workload: dict[str, Any]) -> int:
+    """How many requests the workload's ``interleave`` section sends when recorded in full."""
+    return sum(len(run.order) for run in expand_interleavings(workload))
+
+
 def sample_interleavings(workload: dict[str, Any], count: int, seed: int = 0, first_run: int = 0) -> list[InterleavedRun]:
     """``count`` fresh interleaved runs: a random entry, a random valid order, values drawn from each lane's domains."""
     entries = workload.get("interleave", [])

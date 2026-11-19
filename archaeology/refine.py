@@ -370,6 +370,10 @@ def addition_for_gap(gap: dict[str, Any], ctx: Context) -> tuple[Addition | None
     kind = gap["kind"]
     if kind in NOT_ACTED_ON:
         return None, NOT_ACTED_ON[kind]
+    scenario = (gap.get("data") or {}).get("scenario")
+    templates = {t["name"] for t in ctx.workload.get("scenarios", [])}
+    if scenario is not None and scenario not in templates:
+        return None, f"{scenario} is a lane of an interleaving, not a scenario template refine can vary"
     addition, text = _GENERATORS[kind](gap.get("data") or {}, ctx)
     if addition_size(addition) == 0:
         return None, "nothing to add: no unsampled input, id, parameter or value to vary"

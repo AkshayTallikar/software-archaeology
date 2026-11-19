@@ -16,6 +16,7 @@ import pytest
 
 from archaeology.recorder import ListSink, exercise_target, expand_workload
 from archaeology.replay import ProcessTarget
+from archaeology.interleave import interleaving_request_count
 from archaeology.scenarios import expand_scenarios
 from archaeology.trace import FORM_CONTENT_TYPE, Request
 
@@ -315,7 +316,11 @@ def test_recorded_workload_matches_every_claim():
     with ProcessTarget(["node", str(SERVER)]) as target:
         count = exercise_target(target, workload, sink)
 
-    expected = len(expand_workload(workload)) + sum(len(run.steps) for run in expand_scenarios(workload))
+    expected = (
+        len(expand_workload(workload))
+        + sum(len(run.steps) for run in expand_scenarios(workload))
+        + interleaving_request_count(workload)
+    )
     assert count == expected == len(sink)
     assert all(trace.response.status != 500 for trace in sink)
 
