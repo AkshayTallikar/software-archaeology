@@ -14,6 +14,8 @@ import pytest
 
 from archaeology.infer import infer_spec
 from archaeology.infer.spec import volatile_paths_for
+from archaeology.interleave import sample_interleavings
+from archaeology.probe import probe_interleavings
 from archaeology.recorder import ListSink, exercise_target, load_workload
 from archaeology.replay import AsgiTarget, ProcessTarget, replay
 from modern_library import main as rebuild
@@ -59,3 +61,36 @@ def test_rebuild_replays_the_legacy_recording_exactly(recording) -> None:
 def test_replay_catches_a_small_change_to_any_business_rule(recording, monkeypatch, constant, value) -> None:
     monkeypatch.setattr(rebuild, constant, value)
     assert not _replay(recording).passed(1.0)
+
+
+def _is_interleaved(trace) -> bool:
+    return trace.scenario is not None and "interleave" in trace.scenario
+
+
+def test_rebuild_matches_the_legacy_on_fresh_random_interleavings(recording) -> None:
+    traces, spec = recording
+    assert sum(1 for t in traces if _is_interleaved(t)) > 0
+    runs = sample_interleavings(load_workload(ROOT / "legacy_library" / "workload.json"), 40, seed=5)
+    with ProcessTarget(f"node {ROOT / 'legacy_library' / 'server.js'}") as reference:
+        report = probe_interleavings(reference, AsgiTarget(rebuild.make_app()), runs, spec)
+    assert report.total > 0
+    assert report.divergences == [], [d.order for d in report.divergences[:3]]
+
+
+def _availability_per_member(self, member_id: str, isbn: str) -> bool:
+    """The mutant: a copy on loan to one member looks free to every other member."""
+    return not any(l.isbn == isbn and l.active and l.member_id == member_id for l in self.loans.values())
+
+
+def test_replay_catches_availability_checked_per_member(recording, monkeypatch) -> None:
+    traces, spec = recording
+    interleaved = [t for t in traces if _is_interleaved(t)]
+    assert _replay(recording).passed(1.0)
+    assert replay(interleaved, AsgiTarget(rebuild.make_app()), ignore=lambda r: volatile_paths_for(spec, r)).passed(1.0)
+
+    monkeypatch.setattr(rebuild.Library, "available_to", _availability_per_member)
+    assert not _replay(recording).passed(1.0)
+    # The interleavings alone are enough to show it: a member borrows a copy another member holds.
+    mutant = replay(interleaved, AsgiTarget(rebuild.make_app()), ignore=lambda r: volatile_paths_for(spec, r))
+    assert not mutant.passed(1.0)
+    assert any("BOOK_UNAVAILABLE" in d or "201" in d or "status" in d for r in mutant.mismatched for d in r.differences)

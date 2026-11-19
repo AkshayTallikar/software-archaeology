@@ -2,9 +2,11 @@
 
 A workload is a JSON object with three optional keys: ``requests`` (explicit
 requests, sent in order), ``sweeps`` (parameter sweeps expanded into one
-request per combination of varied values) and ``scenarios`` (multi-step runs
+request per combination of varied values), ``scenarios`` (multi-step runs
 whose later steps use values captured from earlier responses; see
-:mod:`archaeology.scenarios`). They are sent in that order.
+:mod:`archaeology.scenarios`) and ``interleave`` (several scenarios' steps in
+shared global orders; see :mod:`archaeology.interleave`). They are sent in that
+order.
 
 The exerciser drives any target: a ``Request -> Response`` callable such as
 :class:`~archaeology.replay.WsgiTarget`, ``AsgiTarget``, ``HttpTarget`` or
@@ -112,6 +114,7 @@ def exercise_target(
 
     Returns the number of exchanges recorded.
     """
+    from ..interleave import expand_interleavings, run_interleaved
     from ..scenarios import expand_scenarios, run_scenario
 
     now = clock or (lambda: datetime.now(timezone.utc))
@@ -124,8 +127,11 @@ def exercise_target(
 
     for request in expand_workload(workload):
         emit(request, target(request), None)
-    for run in expand_scenarios(workload):
+    runs = expand_scenarios(workload)
+    for run in runs:
         run_scenario(run, target, on_exchange=emit)
+    for interleaved in expand_interleavings(workload, first_run=len(runs)):
+        run_interleaved(interleaved, target, on_exchange=emit)
     return count
 
 

@@ -268,6 +268,10 @@ class Library:
     def is_available(self, isbn: str) -> bool:
         return not any(l.isbn == isbn and l.active for l in self.loans.values())
 
+    def available_to(self, member_id: str, isbn: str) -> bool:
+        """Whether a borrow by ``member_id`` may take the copy. The borrow path asks this, not ``is_available``."""
+        return self.is_available(isbn)
+
 
 # ---------------------------------------------------------------------------
 # Response serialisation
@@ -427,7 +431,7 @@ def make_app() -> FastAPI:
         if len(lib.active_loans_for(member.member_id)) >= MAX_ACTIVE_LOANS:
             return error(409, "LOAN_LIMIT")
 
-        if not lib.is_available(isbn):
+        if not lib.available_to(member.member_id, isbn):
             return error(409, "BOOK_UNAVAILABLE")
 
         period = LOAN_PERIOD_DAYS[member.tier]

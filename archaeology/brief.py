@@ -261,6 +261,115 @@ def _scenario_section(spec: dict[str, Any], traces: Sequence[Trace]) -> list[str
     return lines
 
 
+# --- interleavings between clients ---------------------------------------------
+
+
+def _response_label(trace: Trace) -> str:
+    """``409 BOOK_UNAVAILABLE``: the status, then the error code when the body has one."""
+    body = trace.response.json()
+    code = body.get("error") if isinstance(body, dict) else None
+    return f"{trace.response.status} {code}" if code else str(trace.response.status)
+
+
+def _order_text(run: Sequence[Trace]) -> str:
+    """The global order of one interleaved run as step ids: ``a0 b0 a1``."""
+    return " ".join(f"{t.scenario['interleave']['lane']}{t.scenario['step']}" for t in run)
+
+
+def _interleavings(traces: Sequence[Trace]) -> "OrderedDict[tuple[Any, ...], dict[int, list[Trace]]]":
+    """Interleaved runs grouped by their lanes: the same entry, scenarios and variables in every lane.
+
+    Each group maps interleaved run id to that run's traces in global order.
+    """
+    runs: dict[tuple[str, int], list[Trace]] = {}
+    for trace in traces:
+        tag = trace.scenario or {}
+        if "interleave" not in tag:
+            continue
+        key = (str(tag["interleave"]["name"]), int(tag["interleave"]["id"]))
+        runs.setdefault(key, []).append(trace)
+    groups: OrderedDict[tuple[Any, ...], dict[int, list[Trace]]] = OrderedDict()
+    for (name, run_id), steps in sorted(runs.items(), key=lambda item: item[0][1]):
+        steps.sort(key=lambda t: int(t.scenario["interleave"]["position"]))
+        lanes = {}
+        for trace in steps:
+            lanes.setdefault(trace.scenario["interleave"]["lane"], trace)
+        signature = (name,) + tuple(
+            (lane, scenario_family(str(t.scenario["name"])), json.dumps(t.scenario.get("vars") or {}, sort_keys=True))
+            for lane, t in sorted(lanes.items())
+        )
+        groups.setdefault(signature, {})[run_id] = steps
+    return groups
+
+
+def _lane_text(lane: str, scenario: str, vars_json: str) -> str:
+    """``lane `a` runs `borrow-one` with isbn=9780000000316``."""
+    varied = json.loads(vars_json)
+    text = f"lane `{lane}` runs `{scenario}`"
+    if varied:
+        text += " with " + ", ".join(f"{k}={v}" for k, v in sorted(varied.items()))
+    return text
+
+
+def _varied_text(signature: tuple[Any, ...]) -> str:
+    """``a.tag=ann, b.tag=p``: every lane's varied values, for telling two groups of one entry apart."""
+    parts = []
+    for lane, _, vars_json in signature[1:]:
+        parts += [f"{lane}.{k}={v}" for k, v in sorted(json.loads(vars_json).items())]
+    return ", ".join(parts)
+
+
+def _interactions_section(traces: Sequence[Trace]) -> list[str]:
+    lines = [
+        "## Interactions between clients",
+        "",
+        "Each block is one interleaving as recorded: the same lanes (scenario and variables), run in "
+        "different global orders. Step ids name a lane and a step: `b1` is the second step of lane `b`. "
+        "For each step whose response differs between two of the orders, both orders and both responses "
+        "are listed. A rebuild must give the same response whatever order the clients' steps arrive in.",
+        "",
+    ]
+    groups = _interleavings(traces)
+    if not groups:
+        return lines + ["_No interleavings recorded._", ""]
+    for signature, runs in groups.items():
+        name = signature[0]
+        lane_text = "; ".join(_lane_text(lane, scenario, vars_json) for lane, scenario, vars_json in signature[1:])
+        varied = _varied_text(signature)
+        title = f"### Interleaving `{name}`" + (f" ({varied})" if varied else "")
+        lines += [title, "", f"Lanes: {lane_text}.", ""]
+        lines.append(f"Recorded orders: {len(runs)}.")
+        lines.append("")
+        for run in runs.values():
+            lines.append(f"- Order `{_order_text(run)}`")
+        lines.append("")
+        steps: dict[tuple[str, int], dict[int, Trace]] = {}
+        for run_id, run in runs.items():
+            for trace in run:
+                key = (str(trace.scenario["interleave"]["lane"]), int(trace.scenario["step"]))
+                steps.setdefault(key, {})[run_id] = trace
+        differing = []
+        for key in sorted(steps):
+            by_run = steps[key]
+            labels = {run_id: _response_label(trace) for run_id, trace in by_run.items()}
+            if len(set(labels.values())) > 1:
+                differing.append((key, by_run, labels))
+        if not differing:
+            lines += ["No step's response differed between the recorded orders.", ""]
+            continue
+        for (lane, index), by_run, labels in differing:
+            trace = next(iter(by_run.values()))
+            lines += [f"Step `{lane}{index}` (`{trace.request.method} {trace.request.path}`) responded differently:", ""]
+            shown: dict[str, int] = {}
+            for run_id, label in labels.items():
+                shown.setdefault(label, run_id)
+            for label, run_id in shown.items():
+                order = _order_text(runs[run_id])
+                lines.append(f"- order `{order}`: {label}")
+            lines.append("")
+    return lines
+
+
 # --- piecewise-linear tables --------------------------------------------------
 
 
@@ -429,6 +538,7 @@ def generate_brief(
     lines.append("")
 
     lines += _scenario_section(spec, traces)
+    lines += _interactions_section(traces)
 
     # Stateless examples come from stateless traces only; scenario steps are shown in full above.
     # An endpoint seen only inside scenarios still gets examples, from its scenario steps.

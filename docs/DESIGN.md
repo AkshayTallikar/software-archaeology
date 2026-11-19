@@ -410,11 +410,74 @@ membership tier: `POST /members` with `tier=gold` and with `tier=refine-invalid`
 both return 201 and store `standard`. That contradicts claim L2, and the rebuild
 reproduces it. Neither system diverged anywhere the refinement looked.
 
+### 8.3 Interleavings (`archaeology/interleave.py`)
+
+A scenario is one client at a time, so behaviour that only appears between
+clients (two members after one copy, a return racing a borrow) was never recorded
+or proven. A workload's `interleave` section names two or more lanes, each a
+scenario template or an inline list of steps, and a set of global orders (explicit,
+or sampled from a seed). An order names every step of every lane once and keeps
+each lane's own step order, and the code checks that. Each lane keeps its own
+variables and captures; `vars` gives a lane's domains, as `vary` does for a template.
+The schema is documented in the module docstring.
+
+* **Recording**: each order runs against the target in turn. Every exchange carries
+  its lane's usual `scenario` tag plus `interleave: {name, id, lane, position}`, so
+  the global order is recovered from the trace file. Lane run numbers continue after
+  the scenarios' and stay unique. Replay sends traces in file order, so an
+  interleaving replays as recorded, and the identity map is shared by all lanes.
+* **Probing**: `probe_interleavings` runs fresh interleavings (a random entry, a
+  uniformly random valid order, values drawn from each lane's domains) in lockstep
+  against both systems. Each divergence names the order it happened in.
+* **Brief**: the section "Interactions between clients" lists each recorded
+  interleaving, and for every step whose response differs between orders of the
+  same lanes, the two orders and the two responses (status and error code).
+* **CI**: `archaeology demo --system library` records, replays and probes the
+  interleavings (`--interleave-count`, 60 by default). No CI change was needed.
+
+The Pinecrest workload has four interleavings (25 recorded orders, 240 of its 1,804
+exchanges). Each lane ends by returning what it borrowed.
+
+| Interleaving | Lanes | Orders | What it contends for |
+| --- | --- | --- | --- |
+| `same-copy` | two members borrow one copy | 5 | the copy, in both orders and while the other holds it |
+| `borrow-return-borrow` | a borrow and return by one member, a borrow, return and borrow by another | 6 | the second member's second borrow after the first returns |
+| `fee-blocked-and-free` | a member who returns late (fee, or not) and a free member, after one copy | 10 | a fee-blocked borrow of a free copy, against a free member's borrow |
+| `limit-and-another-member` | a member who borrows five copies and tries a sixth, and another member | 4 (sampled, seed 11) | the loan limit against a copy another member holds |
+
+Results, for the rebuild in `modern_library.main:make_app`:
+
+| | Pinecrest Library |
+| --- | --- |
+| Replay of the widened recording | 1,804 / 1,804 |
+| Probe of 60 fresh interleavings (650 steps) | 650 / 650 agree (5,647 / 5,647 with the other probes) |
+| Availability checked per member (mutant) | killed: replay fails on the full recording and on the interleavings alone |
+
+What the legacy system does between clients, from the recorded orders:
+
+* A copy on loan refuses another member with 409 `BOOK_UNAVAILABLE` until the
+  holder returns it. Once it is returned, the next member's borrow succeeds, in
+  either order.
+* A late return fee blocks only the member who owes it. A return two days late is
+  free; one 32 days late leaves a fee, so that member's next borrow is refused with
+  403 `FEES_OUTSTANDING`, even for a copy nobody holds. A free member can borrow the
+  same copy in the same run.
+* The loan limit is checked before availability. At five loans, a borrow of a copy
+  another member holds answers 409 `LOAN_LIMIT`, not `BOOK_UNAVAILABLE`. The limit is
+  five in every recording, though `LEGACY_API.md` and the claims file say three.
+
+Limits. The engine reports the refused borrow's later return as a `failed_capture`
+gap, because the return names a loan the refused borrow never issued. That is the
+intended outcome of a refused borrow, and the refine step does not act on it. The
+probe also now passes each run's omitted (null) variables to the step renderer, as the
+replay does. Before this, a null in `vary` was sent as a literal placeholder on both
+sides, so it compared equal without testing the omission.
+
 ## 9. Later milestones
 
 * Targeted probing: generate requests to test UNOBSERVED claims. Boundary
   refinement by binary search now lives in `explore`.
 * Agent loop: an orchestrator that hands the brief to coding agents, runs
   replay, and feeds diffs back until equivalence.
-* Concurrency: record interleaved clients and check the rebuild under the
-  same interleavings.
+* Concurrency: requests in flight at the same time. Section 8.3 covers clients
+  whose steps run one after another in a chosen global order.
