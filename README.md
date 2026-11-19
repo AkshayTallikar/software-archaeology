@@ -22,10 +22,11 @@ It ships with two legacy systems to excavate, each with wrong documentation and 
 | | ACME Billing | Pinecrest Library |
 | --- | --- | --- |
 | Legacy system | Python WSGI, stateless | Node.js, stateful, multi-step |
-| Recorded exchanges | 3,226 | 1,115 (incl. 7 multi-step scenarios) |
+| Recorded exchanges | 3,226 | 1,564 (incl. 18 multi-step scenarios) |
+| `explore`: same findings, adaptive | 484 requests (6.7x fewer) | 3.3x fewer on the explored ranges |
 | Documented claims contradicted | 7 of 9 | 10 of 13 |
-| Rebuild (FastAPI, from the brief only) | 3,226 / 3,226 replay | 1,115 / 1,115 replay, 821 ids remapped |
-| Differential probe | 3,000 / 3,000 agree | 5,007 / 5,007 agree (incl. 300 fresh scenario runs) |
+| Rebuild (FastAPI, from the brief only) | 3,226 / 3,226 replay | 1,564 / 1,564 replay, 1,172 ids remapped |
+| Differential probe | 3,000 / 3,000 agree | 4,997 / 4,997 agree (incl. 300 fresh scenario runs) |
 
 ## What it finds
 
@@ -91,7 +92,23 @@ The fee line is the whole late-fee rule recovered exactly, with no source code: 
 
 Replay against a stateful rebuild cannot compare ids literally, because the rebuild hands out its own. Replay keeps an **identity map**: once the legacy system said `L-04b7e2` and the rebuild said `L-9c1f30` in the same place, later requests are sent with the rebuild's id and later responses are compared through the map. The probe runs fresh scenario runs in lockstep against both systems, each side with its own captured ids.
 
-[`modern_library/REBUILD_NOTES.md`](modern_library/REBUILD_NOTES.md) lists what the evidence left open for the rebuild agent, such as whether borrowing is blocked by a fee amount or by days late, since both fit the recording. A mutation test changes one business rule of the rebuild at a time by a small amount (fee cap, grace days, fee step, block threshold, loan limit, page cap). Replay fails for every one of them.
+The first rebuild had to guess four things the recording could not decide, such as whether borrowing is blocked by a fee amount or by days late. The engine then asked the legacy service each question with new scenarios, and the answers came back: total fees of 5.00 block, fees add up with a 10.00 cap per loan, `POST /loans` checks member, date, book, fees, loan limit and availability in that order, and a return dated before its borrow is refused with an error nobody had asked about. The new evidence exposed three differences in the rebuild, and a fresh agent fixed them citing the traces that justify each change. [`modern_library/REBUILD_NOTES.md`](modern_library/REBUILD_NOTES.md) has each question, the runs that settle it and the answer.
+
+A mutation test changes one business rule of the rebuild at a time by a small amount (fee cap, grace days, fee step, block threshold, loan limit, page cap). Replay fails for every one of them.
+
+## The engine asks its own questions
+
+Hand-written sweeps send every value. `archaeology explore` samples each integer or date range coarsely, bisects every interval where the response changes shape, changes a value, or bends a number off its line, and stops when each change sits between two adjacent inputs. On ACME Billing it recovers all the same findings from 484 requests instead of 3,226; on the Pinecrest ranges it needs 309 instead of 1,012. A test checks that both recordings give identical findings.
+
+Every finding also says how well it is supported: the number of samples, and whether each change point is pinned exactly or only to within a few untried inputs. The report, the rebuild brief and the HTML page end with **Thin evidence**, a list of what the recording never covered and the workload line that would cover it:
+
+```text
+inexact_change  GET /quote (sku=GADGET), qty   bulk_discount_pct changes between sampled 98 and 105   sweep qty 98 to 105
+single_status   GET /customer/{id}/tier        only HTTP 200 seen, across 7 requests                  try an unknown or invalid id
+failed_capture  scenario fees-block step 4     13 of 33 runs sent {{loan2}} unbound                    make that earlier step succeed in every run
+```
+
+The brief puts these under "be careful here", so a coding agent knows which edges are guesses.
 
 ## Why replay alone is not enough
 
@@ -123,7 +140,8 @@ flowchart LR
 | Stage | Module | What it does |
 | --- | --- | --- |
 | Excavate | `archaeology/recorder`, `archaeology/scenarios.py` | Drives a declarative workload of explicit requests, parameter sweeps and multi-step scenarios (captures, `{{vars}}`, varied values incl. date ranges) against any target. `RecordingMiddleware` wraps a WSGI app. `archaeology proxy` records real traffic to a live system in any language. |
-| Interpret | `archaeology/infer` | `catalog` (endpoints, opaque-id path templates, types incl. dates, response shapes), `volatility` (generated ids and timestamps, compared only at like positions so legitimate state changes are not noise), `boundaries` (step changes, clamps, shape changes and exact piecewise-linear rules along int or date inputs, per scenario step), `flows` (which response field feeds which later request), `normalization` (case, whitespace and separator insensitivity), `claims` (documentation tested against evidence). |
+| Explore | `archaeology/explore.py` | Records the same behaviour with adaptive questions: coarse samples along each integer or date range, then bisection to the exact change point. Its traces work everywhere `record`'s do. |
+| Interpret | `archaeology/infer` | `catalog` (endpoints, opaque-id path templates, types incl. dates, response shapes), `volatility` (generated ids and timestamps, compared only at like positions so legitimate state changes are not noise), `boundaries` (step changes, clamps, shape changes and exact piecewise-linear rules along int or date inputs, per scenario step), `flows` (which response field feeds which later request), `normalization` (case, whitespace and separator insensitivity), `claims` (documentation tested against evidence, with how many traces support each verdict), `gaps` (thin evidence and the workload addition that would close each gap). |
 | Rebuild | `archaeology/brief.py` | Turns the spec and traces into the agent brief: every rule the evidence shows, contracts, identifier flows and id formats, rule tables, documentation errors, real exchanges on both sides of every boundary, and complete scenario runs. |
 | Prove | `archaeology/replay`, `archaeology/probe.py` | Replays traces in order against an in-process WSGI or ASGI app, a `cmd:` process or a live URL, with an identity map for generated ids and a structural JSON diff that ignores volatile fields. Probes both systems with seeded fresh requests and fresh scenario runs. |
 | Report | `archaeology/html_report.py` | One self-contained HTML page: claims vs reality, hidden behaviours with SVG evidence charts drawn from the traces, flows, and replay and probe verdicts. CI publishes it for both systems. |
@@ -143,6 +161,7 @@ Or stage by stage:
 
 ```bash
 archaeology record --app legacy_app.billing:make_app --workload legacy_app/workload.json --out out/traces.jsonl
+archaeology explore --app legacy_app.billing:make_app --workload legacy_app/workload.json --out out/explored.jsonl --log out/explore.md
 archaeology infer  --traces out/traces.jsonl --claims legacy_app/claims.json --spec out/spec.json --report out/report.md
 archaeology brief  --spec out/spec.json --traces out/traces.jsonl --out out/brief.md --name "ACME Billing"
 archaeology replay --traces out/traces.jsonl --target modern_app.main:make_app --spec out/spec.json
@@ -181,8 +200,8 @@ docs/DESIGN.md      problem, principles, architecture, milestones
 
 ## Roadmap
 
-- Targeted probing: generate requests for claims the recording never tested, and binary-search suspected boundaries instead of sweeping.
-- Close the open questions automatically: turn each ambiguity a rebuild agent reports into a new scenario, record it, and re-check.
+- Close the loop on thin evidence: turn each gap the report lists into workload lines automatically, record them, and re-check.
+- Targeted probing for claims the recording never tested.
 - Closed agent loop: an orchestrator that feeds replay and probe diffs back to the rebuild agents until both pass.
 - Concurrency: record interleaved clients and check the rebuild under the same interleavings.
 

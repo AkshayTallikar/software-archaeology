@@ -263,9 +263,12 @@ differ between identical requests (ids, timestamps) are found by repeating the
 first probe and are then ignored. The tests in `tests/test_explore.py` check
 the findings of both bundled systems against their full recordings. On billing,
 `explore` sends 484 requests against 3,226 for the full recording (6.7x fewer).
-On the Node.js library it sends 412 against 1,115 (2.7x fewer). The request
-budget is the acceptance criterion: at most a fifth for billing and at most two
-fifths for the library. The method can miss two changes that cancel at every
+On the Node.js library it sent 412 against 1,115 (2.7x fewer) before §7.3
+widened that workload. The new questions are value lists, which both recorders
+send in full, so the library is now measured on its explored axes: 309 requests
+against 1,012 for their full sweeps (3.3x fewer), out of 861 against 1,564
+overall. The acceptance criteria are at most a fifth of the full recording for
+billing and at most two fifths of the explored axes' sweeps for the library. The method can miss two changes that cancel at every
 probe point, which a grid of nine points cannot rule out in general.
 
 ### 7.2 Confidence and thin evidence
@@ -306,6 +309,46 @@ say so instead of reporting none.
 On the bundled systems the gaps include a workload defect rather than a gap in
 behaviour: the Pinecrest `join` scenario's null `tier` variant sends the literal
 `{{tier}}` instead of omitting the field.
+
+### 7.3 The open questions, answered by evidence
+
+The first Pinecrest rebuild had to guess four things its recording could not
+decide (§6.8). Milestone 3 put each of them to the legacy service as a black
+box, with 11 new scenarios and one sweep (449 more exchanges, 1,564 in all),
+written without reading the JavaScript or the answer key:
+
+* Borrowing is blocked by total outstanding fees reaching 5.00. Two late
+  returns with fees of 3.00 and 2.00 block it, though neither loan was 20 days
+  late, and a loan still out past its due date never blocks.
+* Fees on several late loans add up, and the 10.00 cap applies per loan.
+* `POST /loans` checks the member, the date, the book, the fees, the loan limit
+  and availability, in that order. Fees and the loan limit cannot be ordered
+  from outside: fees only come from returns, and a return drops the member below
+  the limit.
+* Invalid dates give `400 INVALID_DATE`, unknown or malformed ISBNs give
+  `404 BOOK_NOT_FOUND`, and a return dated before its borrow gives
+  `400 RETURN_BEFORE_BORROW`, a rule nobody had asked about.
+
+Replay of the widened recording found three differences in the rebuild: the
+loan limit came after availability, an active loan showed empty return fields,
+and an early return was accepted. A new agent fixed them in an isolated
+workspace holding only the new recording, spec, brief and replay report, and
+cited the trace that justifies each change. Replay is 1,564 / 1,564 and the
+probe agrees on 4,997 / 4,997 fresh requests and scenario steps.
+
+Asking the questions also fixed a recorder bug: a scenario's `null` variant
+sent the literal `{{tier}}` instead of omitting the field. A form or query value
+that is exactly the placeholder of a variable the run omitted is now left out.
+
+### 7.4 Result
+
+| | ACME Billing | Pinecrest Library |
+| --- | --- | --- |
+| Full recording | 3,226 | 1,564 (was 1,115) |
+| `explore`, same findings | 484 (6.7x fewer) | 309 against 1,012 on explored axes (3.3x fewer) |
+| Thin-evidence items | 9 | 8 |
+| Replay | 3,226 / 3,226 | 1,564 / 1,564 |
+| Probe | 3,000 / 3,000 | 4,997 / 4,997 |
 
 ## 8. Later milestones
 
